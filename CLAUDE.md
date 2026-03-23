@@ -1,9 +1,9 @@
-# Home Dashboard
+# Bag End
 
 A web-based household command center for Brent, Danielle, and their baby. Displayed on a 32" portrait monitor (Raspberry Pi kiosk) in the kitchen. Also accessible as a PWA via Tailscale.
 
 ## Full Plan
-`C:\Users\eluse\.claude\plans\home-dashboard-plan.md`
+`C:\Users\eluse\.claude\plans\bag-end-plan.md`
 
 ## Stack
 - **Backend:** Python FastAPI, separate port from ai-tutoring-system

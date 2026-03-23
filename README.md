@@ -1,4 +1,4 @@
-# Home Dashboard
+# Bag End
 
 A web-based household command center displayed on a 32" portrait monitor in the kitchen. Built for Brent and Danielle's family.
 
@@ -23,4 +23,4 @@ Accessible on local network and via Tailscale VPN only. No public internet expos
 
 ## Docs
 
-See `C:\Users\eluse\.claude\plans\home-dashboard-plan.md` for full implementation plan.
+See `C:\Users\eluse\.claude\plans\bag-end-plan.md` for full implementation plan.
