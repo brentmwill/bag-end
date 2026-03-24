@@ -1,4 +1,6 @@
-# Bag End
+# Bag End — Family Home Dashboard
+
+Named for the Baggins' home in the Shire — the family hearth, everything in one place.
 
 A web-based household command center for Brent, Danielle, and their baby. Displayed on a 32" portrait monitor (Raspberry Pi kiosk) in the kitchen. Also accessible as a PWA via Tailscale.
 
