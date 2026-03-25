@@ -9,6 +9,7 @@ async def fetch_weather(lat: float, lon: float) -> dict[str, Any]:
         "current_weather": "true",
         "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode",
         "temperature_unit": "fahrenheit",
+        "windspeed_unit": "mph",
         "timezone": "auto",
         "forecast_days": 7,
     }

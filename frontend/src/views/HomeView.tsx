@@ -117,10 +117,10 @@ export default function HomeView({ data }: Props) {
                   <span className={styles.weatherTemp}>
                     {Math.round(weather.current.temp)}
                   </span>
-                  <span className={styles.weatherTempUnit}>°C</span>
+                  <span className={styles.weatherTempUnit}>°F</span>
                 </div>
                 <div className={styles.weatherWind}>
-                  Wind {Math.round(weather.current.windspeed)} km/h
+                  Wind {Math.round(weather.current.windspeed)} mph
                 </div>
               </div>
             </div>
