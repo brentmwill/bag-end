@@ -1,6 +1,6 @@
 from datetime import date
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+
 from typing import List
 
 
@@ -25,8 +25,8 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_group_chat_id: str = ""
 
-    weather_lat: float = 41.8827
-    weather_lon: float = -87.6233
+    weather_lat: float = 40.0196
+    weather_lon: float = -75.3135
 
     pregnancy_safe_expiry: date = date(2026, 10, 15)
 
