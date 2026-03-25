@@ -44,7 +44,7 @@ async def refresh_glance() -> dict:
         grocery_list = await anylist_svc.fetch_grocery_list()  # noqa: F841
 
         # TODO: fetch tonight's meal plan slot from DB
-        tonight_meal = {}
+        tonight_meal = None
 
         # TODO: fetch baby meal slots for today from DB
         baby_meal_slots = []
@@ -53,10 +53,10 @@ async def refresh_glance() -> dict:
         freezer_items = []
 
         # TODO: fetch or generate word of the day from WordOfDayCache
-        word_of_day = {}
+        word_of_day = None
 
         # TODO: fetch digest snippet from DigestCache for today
-        digest_snippet = {}
+        digest_snippet = None
 
         # TODO: fetch meal plan for the current week from DB
         meal_plan_week = []
