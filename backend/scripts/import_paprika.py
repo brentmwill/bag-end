@@ -44,8 +44,10 @@ def parse_rating(soup: BeautifulSoup) -> Optional[int]:
     tag = soup.find("p", itemprop="aggregateRating")
     if not tag:
         return None
-    stars = tag.get_text().count("★")
-    return stars if stars > 0 else None
+    value = tag.get("value")
+    if value and int(value) > 0:
+        return int(value)
+    return None
 
 
 def parse_time_servings(soup: BeautifulSoup):
@@ -122,7 +124,15 @@ def parse_recipe(html_path: Path) -> dict:
     nutrition = nutrition_div.get_text(strip=True) if nutrition_div else None
 
     photo_tag = soup.find("img", class_="photo")
-    photo_path = photo_tag["src"] if photo_tag and photo_tag.get("src") else None
+    photo_url = None
+    if photo_tag:
+        parent_a = photo_tag.find_parent("a")
+        if parent_a and parent_a.get("href"):
+            photo_url = parent_a["href"]
+
+    cat_set = {c.lower() for c in categories}
+    freezable = "freezes well" in cat_set
+    baby_friendly = "baby" in cat_set
 
     ingredients = parse_ingredients(soup)
     directions = parse_directions(soup)
@@ -138,7 +148,9 @@ def parse_recipe(html_path: Path) -> dict:
         "source_author": source_author,
         "notes": notes,
         "nutrition": nutrition,
-        "photo_path": photo_path,
+        "photo_path": photo_url,
+        "freezable": freezable,
+        "baby_friendly": baby_friendly,
         "ingredients": ingredients,
         "directions": directions,
     }
@@ -156,10 +168,12 @@ def insert_recipe(session: Session, data: dict) -> bool:
         text("""
             INSERT INTO recipes (
                 id, name, categories, rating, prep_time, cook_time, servings,
-                source_url, source_author, notes, nutrition, photo_path
+                source_url, source_author, notes, nutrition, photo_path,
+                freezable, baby_friendly
             ) VALUES (
                 :id, :name, :categories, :rating, :prep_time, :cook_time, :servings,
-                :source_url, :source_author, :notes, :nutrition, :photo_path
+                :source_url, :source_author, :notes, :nutrition, :photo_path,
+                :freezable, :baby_friendly
             )
         """),
         {
@@ -175,6 +189,8 @@ def insert_recipe(session: Session, data: dict) -> bool:
             "notes": data["notes"],
             "nutrition": data["nutrition"],
             "photo_path": data["photo_path"],
+            "freezable": data["freezable"],
+            "baby_friendly": data["baby_friendly"],
         },
     )
 
