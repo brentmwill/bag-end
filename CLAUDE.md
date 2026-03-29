@@ -19,9 +19,13 @@ A web-based household command center for Brent, Danielle, and their baby. Displa
 - Google Maps Platform API (commute estimates)
 - Google Photos API (read-only, slideshow)
 - Trello API (read + mark complete)
-- AnyList MCP server: `C:\Users\eluse\Projects\anylist-mcp`
+- AnyList MCP server (Windows/Claude Code): `C:\Users\eluse\Projects\anylist-mcp`
   - Config: `C:\Users\eluse\.mcp.json`
   - **Protobuf patch:** `node_modules/anylist/lib/item.js` ~line 71: `quantity` → `deprecatedQuantity`. Reapply after any `npm install`.
+- AnyList backend helper (server): `backend/tools/anylist/push.js`
+  - Dep: `github:davidashman/anylist#feature/add-ingredients` (not on npm registry)
+  - Setup: `cd backend/tools/anylist && npm install` then apply same protobuf patch
+  - Requires `ANYLIST_EMAIL` + `ANYLIST_PASSWORD` in server `.env`
 - Telegram Bot API
 
 ## Server
