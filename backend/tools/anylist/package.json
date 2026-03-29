@@ -7,6 +7,6 @@
     "push": "node push.js"
   },
   "dependencies": {
-    "anylist": "^3.0.0"
+    "anylist": "github:davidashman/anylist#feature/add-ingredients"
   }
 }
