@@ -20,6 +20,7 @@ class Recipe(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     categories: Mapped[List[str]] = mapped_column(ARRAY(String), server_default="{}")
+    tags: Mapped[List[str]] = mapped_column(ARRAY(String), server_default="{}")
     rating: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
     prep_time: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     cook_time: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

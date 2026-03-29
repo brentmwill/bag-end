@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { GlanceData, CalendarEvent, MealPlanDay } from '../types';
+import MealPlannerOverlay from './MealPlannerOverlay';
 import styles from './PlanningView.module.css';
 
 interface Props {
@@ -81,6 +82,7 @@ export default function PlanningView({ data }: Props) {
     return () => clearInterval(id);
   }, []);
 
+  const [plannerOpen, setPlannerOpen] = useState(false);
   const planning = data?.planning ?? null;
   const mealPlan: MealPlanDay[] = planning?.meal_plan_week ?? [];
   const calendarWeek: CalendarEvent[] = planning?.calendar_week ?? [];
@@ -91,8 +93,13 @@ export default function PlanningView({ data }: Props) {
       {/* Header */}
       <div className={styles.header}>
         <span className={styles.viewLabel}>Planning</span>
+        <button className={styles.planMealsBtn} onClick={() => setPlannerOpen(true)}>
+          Plan Meals
+        </button>
         <span className={styles.clock}>{time}</span>
       </div>
+
+      {plannerOpen && <MealPlannerOverlay onClose={() => setPlannerOpen(false)} />}
 
       {/* Week Meal Plan */}
       <div className={styles.sectionCard}>

@@ -1,0 +1,12 @@
+{
+  "name": "bag-end-anylist",
+  "version": "1.0.0",
+  "description": "AnyList push helper for Bag End backend",
+  "type": "module",
+  "scripts": {
+    "push": "node push.js"
+  },
+  "dependencies": {
+    "anylist": "^3.0.0"
+  }
+}

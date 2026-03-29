@@ -1,21 +1,50 @@
+import asyncio
+import json
+import os
+from pathlib import Path
 from typing import Any
+
+PUSH_SCRIPT = Path(__file__).parent.parent.parent / "tools" / "anylist" / "push.js"
+
+
+async def push_ingredients(ingredients: list[dict[str, str]], list_name: str = "Groceries") -> dict[str, Any]:
+    """
+    Push a list of ingredients to AnyList via the Node.js helper script.
+
+    Each ingredient dict: {"name": "1 lb ground beef", "notes": "Baked Meatballs"}
+    Returns: {"added": [...], "skipped": [...], "unchecked": [...]}
+
+    Requires Node.js on the server and tools/anylist deps installed.
+    ANYLIST_EMAIL and ANYLIST_PASSWORD must be in the environment.
+    """
+    payload = json.dumps({"ingredients": ingredients, "list_name": list_name})
+
+    env = os.environ.copy()
+    proc = await asyncio.create_subprocess_exec(
+        "node", str(PUSH_SCRIPT),
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        env=env,
+    )
+    stdout, stderr = await proc.communicate(input=payload.encode())
+
+    if proc.returncode != 0:
+        raise RuntimeError(f"AnyList push failed: {stderr.decode().strip()}")
+
+    return json.loads(stdout.decode().strip())
 
 
 async def fetch_grocery_list() -> list[dict[str, Any]]:
-    # TODO: Implement via AnyList MCP server at C:\Users\eluse\Projects\anylist-mcp
-    # Note: the anylist-mcp server requires a protobuf patch to run correctly.
-    # Use the MCP client interface to call mcp__anylist__get_list_items.
-    # Return list of dicts with keys: id, name, checked, category, notes
+    # TODO: implement via anylist push.js — call get_lists + get_list_items
     return []
 
 
 async def add_item(name: str, notes: str = "") -> bool:
-    # TODO: Implement via AnyList MCP server.
-    # Call mcp__anylist__add_item_to_list with list_id and item name/notes.
-    return False
+    result = await push_ingredients([{"name": name, "notes": notes}])
+    return len(result.get("added", [])) > 0
 
 
 async def check_item(item_id: str) -> bool:
-    # TODO: Implement via AnyList MCP server.
-    # Call the appropriate MCP tool to mark item as checked.
+    # TODO: implement via anylist-mcp or a separate Node helper
     return False

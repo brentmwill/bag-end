@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import date
 from typing import Optional, List
@@ -5,8 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import anthropic
+from app.config import settings
 from app.database import get_db
-from app.models.recipe import Recipe
+from app.models.recipe import Recipe, RecipeStep, RecipeIngredient
 
 router = APIRouter()
 
@@ -111,5 +114,95 @@ class ClipRequest(BaseModel):
 @router.post("/api/recipes/clip", status_code=501)
 async def clip_recipe(data: ClipRequest):
     # TODO: use recipe-scrapers to scrape the given URL and return pre-filled recipe data
-    # Example: scraper = scrape_me(data.url); return {name: scraper.title(), ...}
     raise HTTPException(status_code=501, detail="Recipe clipping not yet implemented")
+
+
+class GenerateRequest(BaseModel):
+    categories: List[str] = []
+    pregnancy_safe: Optional[bool] = None
+    baby_friendly: Optional[bool] = None
+    freezable: Optional[bool] = None
+    save: bool = False  # if True, persist to DB immediately
+
+
+GENERATE_SYSTEM = """You are a helpful family meal planner. Generate a single recipe that fits the requested criteria.
+Respond with ONLY valid JSON in this exact shape:
+{
+  "name": "Recipe Name",
+  "prep_time": "15 mins",
+  "cook_time": "30 mins",
+  "servings": "4",
+  "ingredients": [
+    {"quantity": "1 lb", "display_text": "1 lb ground beef"},
+    {"quantity": "2 cloves", "display_text": "2 cloves garlic, minced"}
+  ],
+  "directions": ["Step one...", "Step two..."],
+  "notes": "Optional tips"
+}
+No markdown, no explanation — JSON only."""
+
+
+@router.post("/api/recipes/generate")
+async def generate_recipe(data: GenerateRequest, db: AsyncSession = Depends(get_db)):
+    constraints = []
+    if data.categories:
+        constraints.append(f"Categories/cuisine/style: {', '.join(data.categories)}")
+    if data.pregnancy_safe:
+        constraints.append("Must be pregnancy-safe (no raw fish, deli meat, soft cheeses, etc.)")
+    if data.baby_friendly:
+        constraints.append("Must be baby/toddler-friendly (soft textures, mild flavors, finger-food or easily mashed)")
+    if data.freezable:
+        constraints.append("Must freeze well for batch cooking")
+
+    prompt = "Generate a dinner recipe"
+    if constraints:
+        prompt += " with these requirements:\n" + "\n".join(f"- {c}" for c in constraints)
+    else:
+        prompt += "."
+
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+    message = await client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=1024,
+        system=GENERATE_SYSTEM,
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    try:
+        recipe_data = json.loads(message.content[0].text)
+    except (json.JSONDecodeError, IndexError, KeyError):
+        raise HTTPException(status_code=502, detail="Failed to parse generated recipe")
+
+    if data.save:
+        recipe = Recipe(
+            name=recipe_data["name"],
+            prep_time=recipe_data.get("prep_time"),
+            cook_time=recipe_data.get("cook_time"),
+            servings=recipe_data.get("servings"),
+            notes=recipe_data.get("notes"),
+            categories=data.categories,
+            pregnancy_safe=data.pregnancy_safe or False,
+            baby_friendly=data.baby_friendly or False,
+            freezable=data.freezable or False,
+        )
+        db.add(recipe)
+        await db.flush()
+
+        for i, step in enumerate(recipe_data.get("directions", []), start=1):
+            db.add(RecipeStep(recipe_id=recipe.id, step_number=i, instruction=step))
+
+        for ing in recipe_data.get("ingredients", []):
+            db.add(RecipeIngredient(
+                recipe_id=recipe.id,
+                quantity=ing.get("quantity"),
+                display_text=ing["display_text"],
+            ))
+
+        await db.commit()
+        await db.refresh(recipe)
+        recipe_data["id"] = str(recipe.id)
+        recipe_data["saved"] = True
+    else:
+        recipe_data["saved"] = False
+
+    return recipe_data

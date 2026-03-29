@@ -90,6 +90,44 @@ export interface AmbientView {
   word_of_day: WordOfDay | null;
 }
 
+export interface Recipe {
+  id: string;
+  name: string;
+  categories: string[];
+  tags: string[];
+  rating: number | null;
+  prep_time: string | null;
+  cook_time: string | null;
+  servings: string | null;
+  photo_path: string | null;
+  pregnancy_safe: boolean;
+  baby_friendly: boolean;
+  freezable: boolean;
+  batch_cookable: boolean;
+}
+
+export interface MealPlanSlot {
+  id: string;
+  date: string;
+  meal_type: string;
+  recipe_id: string | null;
+  recipe_name: string | null;
+  recipe_photo: string | null;
+  source: string;
+}
+
+export interface GeneratedRecipe {
+  name: string;
+  prep_time: string | null;
+  cook_time: string | null;
+  servings: string | null;
+  ingredients: Array<{ quantity: string | null; display_text: string }>;
+  directions: string[];
+  notes: string | null;
+  id?: string;
+  saved: boolean;
+}
+
 export interface GlanceData {
   home: HomeView | null;
   planning: PlanningView | null;

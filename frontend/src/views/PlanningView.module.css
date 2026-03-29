@@ -22,6 +22,22 @@
   color: var(--text-muted);
 }
 
+.planMealsBtn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.9rem;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  letter-spacing: 0.03em;
+}
+
+.planMealsBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .clock {
   font-size: var(--font-size-3xl);
   font-weight: 200;
