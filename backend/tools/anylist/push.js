@@ -19,6 +19,9 @@
  * Env vars required: ANYLIST_EMAIL, ANYLIST_PASSWORD
  */
 
+// Redirect console.log to stderr so only our JSON result goes to stdout
+console.log = (...args) => process.stderr.write(args.join(' ') + '\n');
+
 import AnyList from 'anylist';
 
 const { ANYLIST_EMAIL, ANYLIST_PASSWORD } = process.env;
