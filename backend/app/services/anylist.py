@@ -4,6 +4,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from app.config import settings
+
 PUSH_SCRIPT = Path(__file__).parent.parent.parent / "tools" / "anylist" / "push.js"
 
 
@@ -20,6 +22,8 @@ async def push_ingredients(ingredients: list[dict[str, str]], list_name: str = "
     payload = json.dumps({"ingredients": ingredients, "list_name": list_name})
 
     env = os.environ.copy()
+    env["ANYLIST_EMAIL"] = settings.anylist_email
+    env["ANYLIST_PASSWORD"] = settings.anylist_password
     proc = await asyncio.create_subprocess_exec(
         "/usr/bin/node", str(PUSH_SCRIPT),
         stdin=asyncio.subprocess.PIPE,
