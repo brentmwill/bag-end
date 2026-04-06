@@ -89,7 +89,7 @@ async def delete_meal_plan_slot(slot_id: uuid.UUID, db: AsyncSession = Depends(g
 
 class PushToAnyListRequest(BaseModel):
     week_start: date  # Monday of the week to push
-    list_name: str = "Groceries"
+    list_name: str = "My Grocery List"
 
 
 @router.post("/api/meal-plan/push-to-anylist")

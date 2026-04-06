@@ -7,7 +7,7 @@ from typing import Any
 PUSH_SCRIPT = Path(__file__).parent.parent.parent / "tools" / "anylist" / "push.js"
 
 
-async def push_ingredients(ingredients: list[dict[str, str]], list_name: str = "Groceries") -> dict[str, Any]:
+async def push_ingredients(ingredients: list[dict[str, str]], list_name: str = "My Grocery List") -> dict[str, Any]:
     """
     Push a list of ingredients to AnyList via the Node.js helper script.
 
