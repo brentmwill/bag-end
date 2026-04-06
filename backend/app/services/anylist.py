@@ -21,7 +21,7 @@ async def push_ingredients(ingredients: list[dict[str, str]], list_name: str = "
 
     env = os.environ.copy()
     proc = await asyncio.create_subprocess_exec(
-        "node", str(PUSH_SCRIPT),
+        "/usr/bin/node", str(PUSH_SCRIPT),
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
