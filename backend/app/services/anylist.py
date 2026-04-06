@@ -36,7 +36,8 @@ async def push_ingredients(ingredients: list[dict[str, str]], list_name: str = "
     if proc.returncode != 0:
         raise RuntimeError(f"AnyList push failed: {stderr.decode().strip()}")
 
-    return json.loads(stdout.decode().strip())
+    last_line = stdout.decode().strip().split('\n')[-1]
+    return json.loads(last_line)
 
 
 async def fetch_grocery_list() -> list[dict[str, Any]]:
