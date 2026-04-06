@@ -13,6 +13,9 @@ class Settings(BaseSettings):
 
     anthropic_api_key: str = ""
 
+    anylist_email: str = ""
+    anylist_password: str = ""
+
     google_calendar_credentials_path: str = ""
     google_calendar_ids: str = ""
 
