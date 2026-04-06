@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.meal_plan import MealPlanSlot
-from app.models.recipe import RecipeIngredient
+from app.models.recipe import Recipe, RecipeIngredient
 from app.services import anylist as anylist_service
 
 router = APIRouter()
@@ -101,7 +101,7 @@ async def push_to_anylist(data: PushToAnyListRequest, db: AsyncSession = Depends
         select(MealPlanSlot)
         .where(MealPlanSlot.date >= data.week_start, MealPlanSlot.date <= week_end)
         .where(MealPlanSlot.recipe_id.is_not(None))
-        .options(selectinload(MealPlanSlot.recipe).selectinload("ingredients"))
+        .options(selectinload(MealPlanSlot.recipe).selectinload(Recipe.ingredients))
     )
     result = await db.execute(stmt)
     slots = result.scalars().all()
