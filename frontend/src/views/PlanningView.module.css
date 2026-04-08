@@ -124,6 +124,18 @@
   color: var(--text-muted);
 }
 
+.mealPlanBaby {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+}
+
+.mealPlanBabyItem {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
 /* ── Calendar Week ── */
 .calendarWeek {
   display: flex;

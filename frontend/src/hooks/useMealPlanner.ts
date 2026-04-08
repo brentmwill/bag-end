@@ -4,7 +4,11 @@ import { Recipe, MealPlanSlot } from '../types';
 export interface WeekDay {
   date: string;       // YYYY-MM-DD
   label: string;      // "Mon 3/31"
+  isWeekday: boolean;
   slot: MealPlanSlot | null;
+  babyLunchSlot: MealPlanSlot | null;
+  babySnackSlots: MealPlanSlot[];
+  babyLunchSuggestion: string | null;
 }
 
 export interface Filters {
@@ -12,6 +16,7 @@ export interface Filters {
   pregnancy_safe: boolean;
   baby_friendly: boolean;
   freezable: boolean;
+  finger_food: boolean;
 }
 
 function getMondayOfWeek(d: Date): Date {
@@ -34,7 +39,11 @@ function buildWeekDays(monday: Date): WeekDay[] {
     return {
       date: toDateStr(d),
       label: d.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' }),
+      isWeekday: d.getDay() >= 1 && d.getDay() <= 5,
       slot: null,
+      babyLunchSlot: null,
+      babySnackSlots: [],
+      babyLunchSuggestion: null,
     };
   });
 }
@@ -51,6 +60,7 @@ export function useMealPlanner() {
     pregnancy_safe: false,
     baby_friendly: false,
     freezable: false,
+    finger_food: false,
   });
   const [loadingRecipes, setLoadingRecipes] = useState(false);
   const [pushStatus, setPushStatus] = useState<'idle' | 'pushing' | 'done' | 'error'>('idle');
@@ -63,6 +73,7 @@ export function useMealPlanner() {
     if (filters.pregnancy_safe) params.set('pregnancy_safe', 'true');
     if (filters.baby_friendly) params.set('baby_friendly', 'true');
     if (filters.freezable) params.set('freezable', 'true');
+    if (filters.finger_food) params.append('category', 'Finger Food');
 
     fetch(`/api/recipes?${params}`)
       .then(r => r.json())
@@ -79,12 +90,36 @@ export function useMealPlanner() {
         setWeekDays(prev => prev.map(day => ({
           ...day,
           slot: slots.find(s => s.date === day.date && s.meal_type === 'dinner') ?? null,
+          babyLunchSlot: slots.find(s => s.date === day.date && s.meal_type === 'baby_lunch') ?? null,
+          babySnackSlots: slots.filter(s => s.date === day.date && s.meal_type === 'baby_snack'),
         })));
       })
       .catch(console.error);
   }, [weekStart, weekEnd]);
 
   useEffect(() => { fetchWeekSlots(); }, [fetchWeekSlots]);
+
+  // Fetch baby lunch suggestions for weekdays
+  useEffect(() => {
+    const weekdayDates = buildWeekDays(monday)
+      .filter(d => d.isWeekday)
+      .map(d => d.date);
+
+    Promise.all(
+      weekdayDates.map(dateStr =>
+        fetch(`/api/meal-plan/suggest-baby-lunch?date=${dateStr}`)
+          .then(r => r.json())
+          .then((data: { suggestion: string | null }) => ({ date: dateStr, suggestion: data.suggestion }))
+          .catch(() => ({ date: dateStr, suggestion: null }))
+      )
+    ).then(results => {
+      const suggestionMap = new Map(results.map(r => [r.date, r.suggestion]));
+      setWeekDays(prev => prev.map(day => ({
+        ...day,
+        babyLunchSuggestion: suggestionMap.get(day.date) ?? null,
+      })));
+    });
+  }, [weekStart]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const assignRecipe = useCallback(async (date: string, recipe: Recipe) => {
     const existing = weekDays.find(d => d.date === date)?.slot;
@@ -108,6 +143,45 @@ export function useMealPlanner() {
     await fetch(`/api/meal-plan/${slotId}`, { method: 'DELETE' });
     fetchWeekSlots();
   }, [fetchWeekSlots]);
+
+  const saveBabySlot = useCallback(async (date: string, meal_type: 'baby_lunch' | 'baby_snack', notes: string, existingId?: string) => {
+    if (existingId) {
+      await fetch(`/api/meal-plan/${existingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes }),
+      });
+    } else {
+      await fetch('/api/meal-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, meal_type, notes, source: 'planned' }),
+      });
+    }
+    fetchWeekSlots();
+  }, [fetchWeekSlots]);
+
+  const removeBabySlot = useCallback(async (slotId: string) => {
+    await fetch(`/api/meal-plan/${slotId}`, { method: 'DELETE' });
+    fetchWeekSlots();
+  }, [fetchWeekSlots]);
+
+  const updateRecipeCategories = useCallback(async (recipeId: string, categories: string[]) => {
+    await fetch(`/api/recipes/${recipeId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categories }),
+    });
+    // Refresh recipe list
+    const params = new URLSearchParams();
+    filters.categories.forEach(c => params.append('category', c));
+    if (filters.pregnancy_safe) params.set('pregnancy_safe', 'true');
+    if (filters.baby_friendly) params.set('baby_friendly', 'true');
+    if (filters.freezable) params.set('freezable', 'true');
+    if (filters.finger_food) params.append('category', 'Finger Food');
+    const res = await fetch(`/api/recipes?${params}`);
+    setRecipes(await res.json());
+  }, [filters]);
 
   const pushToAnyList = useCallback(async () => {
     setPushStatus('pushing');
@@ -148,6 +222,9 @@ export function useMealPlanner() {
     weekStart,
     assignRecipe,
     removeRecipe,
+    saveBabySlot,
+    removeBabySlot,
+    updateRecipeCategories,
     pushToAnyList,
     toggleCategory,
     toggleBoolean,

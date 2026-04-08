@@ -34,9 +34,9 @@ class RecipeCreate(BaseModel):
 
 
 class RecipeUpdate(BaseModel):
-    # Additional fields can be added here as needed
     rating: Optional[int] = None
     notes: Optional[str] = None
+    categories: Optional[List[str]] = None
 
 
 @router.get("/api/recipes")

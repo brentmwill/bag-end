@@ -1,5 +1,10 @@
 import asyncio
-from datetime import datetime, timezone
+from collections import defaultdict
+from datetime import datetime, date, timedelta, timezone
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+from app.database import AsyncSessionLocal
+from app.models.meal_plan import MealPlanSlot
 from app.services import weather as weather_svc
 from app.services import google_calendar as calendar_svc
 from app.services import google_maps as maps_svc
@@ -58,8 +63,44 @@ async def refresh_glance() -> dict:
         # TODO: fetch digest snippet from DigestCache for today
         digest_snippet = None
 
-        # TODO: fetch meal plan for the current week from DB
+        # Fetch meal plan for the current week from DB
+        today = date.today()
+        week_day = today.weekday()  # Mon=0, Sun=6
+        monday = today - timedelta(days=week_day)
+        sunday = monday + timedelta(days=6)
+
+        async with AsyncSessionLocal() as db:
+            stmt = (
+                select(MealPlanSlot)
+                .where(MealPlanSlot.date >= monday, MealPlanSlot.date <= sunday)
+                .options(selectinload(MealPlanSlot.recipe))
+                .order_by(MealPlanSlot.date)
+            )
+            result = await db.execute(stmt)
+            slots = result.scalars().all()
+
+        # Pivot slots by date
+        by_date: dict = defaultdict(lambda: {"dinner": None, "baby_lunch": None, "baby_snacks": []})
+        for slot in slots:
+            d = slot.date.isoformat()
+            if slot.meal_type == "dinner":
+                by_date[d]["dinner"] = slot.recipe.name if slot.recipe else None
+            elif slot.meal_type == "baby_lunch":
+                by_date[d]["baby_lunch"] = slot.notes or (slot.recipe.name if slot.recipe else None)
+            elif slot.meal_type == "baby_snack":
+                by_date[d]["baby_snacks"].append(slot.notes or (slot.recipe.name if slot.recipe else None))
+
+        # Build ordered list for Mon–Sun, weekdays only include baby slots
         meal_plan_week = []
+        for i in range(7):
+            d = monday + timedelta(days=i)
+            d_str = d.isoformat()
+            is_weekday = d.weekday() < 5
+            entry = {"date": d_str, "dinner": by_date[d_str]["dinner"]}
+            if is_weekday:
+                entry["baby_lunch"] = by_date[d_str]["baby_lunch"]
+                entry["baby_snacks"] = by_date[d_str]["baby_snacks"]
+            meal_plan_week.append(entry)
 
         data = {
             "home": {

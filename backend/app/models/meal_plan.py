@@ -20,6 +20,7 @@ class MealPlanSlot(Base):
         UUID(as_uuid=True), ForeignKey("recipes.id", ondelete="SET NULL"), nullable=True
     )
     source: Mapped[str] = mapped_column(Text, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
     )

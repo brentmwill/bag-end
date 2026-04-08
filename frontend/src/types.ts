@@ -56,7 +56,8 @@ export interface FreezerItem {
 export interface MealPlanDay {
   date: string;
   dinner: string | null;
-  lunch: string | null;
+  baby_lunch?: string | null;
+  baby_snacks?: string[];
 }
 
 export interface WordOfDay {
@@ -113,6 +114,7 @@ export interface MealPlanSlot {
   recipe_id: string | null;
   recipe_name: string | null;
   recipe_photo: string | null;
+  notes: string | null;
   source: string;
 }
 

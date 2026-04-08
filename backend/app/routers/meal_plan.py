@@ -18,11 +18,13 @@ class MealPlanSlotCreate(BaseModel):
     date: date
     meal_type: str
     recipe_id: Optional[uuid.UUID] = None
+    notes: Optional[str] = None
     source: str = "planned"
 
 
 class MealPlanSlotUpdate(BaseModel):
     recipe_id: Optional[uuid.UUID] = None
+    notes: Optional[str] = None
 
 
 def slot_to_dict(slot: MealPlanSlot) -> dict:
@@ -31,6 +33,7 @@ def slot_to_dict(slot: MealPlanSlot) -> dict:
         "date": slot.date,
         "meal_type": slot.meal_type,
         "source": slot.source,
+        "notes": slot.notes,
         "recipe_id": slot.recipe_id,
         "recipe_name": slot.recipe.name if slot.recipe else None,
         "recipe_photo": slot.recipe.photo_path if slot.recipe else None,
@@ -51,6 +54,21 @@ async def list_meal_plan(
     stmt = stmt.order_by(MealPlanSlot.date)
     result = await db.execute(stmt)
     return [slot_to_dict(s) for s in result.scalars().all()]
+
+
+@router.get("/api/meal-plan/suggest-baby-lunch")
+async def suggest_baby_lunch(date_str: date = Query(..., alias="date"), db: AsyncSession = Depends(get_db)):
+    """Return the prior night's dinner recipe name as a baby lunch suggestion."""
+    prior_day = date_str - timedelta(days=1)
+    stmt = (
+        select(MealPlanSlot)
+        .where(MealPlanSlot.date == prior_day, MealPlanSlot.meal_type == "dinner")
+        .options(selectinload(MealPlanSlot.recipe))
+    )
+    result = await db.execute(stmt)
+    slot = result.scalar_one_or_none()
+    suggestion = slot.recipe.name if slot and slot.recipe else None
+    return {"suggestion": suggestion}
 
 
 @router.post("/api/meal-plan", status_code=201)
@@ -100,6 +118,7 @@ async def push_to_anylist(data: PushToAnyListRequest, db: AsyncSession = Depends
     stmt = (
         select(MealPlanSlot)
         .where(MealPlanSlot.date >= data.week_start, MealPlanSlot.date <= week_end)
+        .where(MealPlanSlot.meal_type == "dinner")
         .where(MealPlanSlot.recipe_id.is_not(None))
         .options(selectinload(MealPlanSlot.recipe).selectinload(Recipe.ingredients))
     )

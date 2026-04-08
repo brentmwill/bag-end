@@ -122,8 +122,15 @@ export default function PlanningView({ data }: Props) {
                     ) : (
                       <span className={styles.mealPlanEmpty}>—</span>
                     )}
-                    {day.lunch && (
-                      <span className={styles.mealPlanLunch}>Lunch: {day.lunch}</span>
+                    {(day.baby_lunch || (day.baby_snacks && day.baby_snacks.length > 0)) && (
+                      <div className={styles.mealPlanBaby}>
+                        {day.baby_lunch && (
+                          <span className={styles.mealPlanBabyItem}>🍼 {day.baby_lunch}</span>
+                        )}
+                        {day.baby_snacks?.map((snack, i) => (
+                          <span key={i} className={styles.mealPlanBabyItem}>· {snack}</span>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
