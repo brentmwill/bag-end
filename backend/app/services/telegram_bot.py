@@ -39,14 +39,26 @@ def get_bot() -> Bot | None:
 
 
 # ---------------------------------------------------------------------------
+# Bot-thread-local DB session factory
+# Initialized inside _run_bot so it binds to the bot's event loop, not uvicorn's.
+# ---------------------------------------------------------------------------
+_BotSession = None
+
+
+def _get_bot_session():
+    if _BotSession is None:
+        raise RuntimeError("Bot DB session not initialized")
+    return _BotSession()
+
+
+# ---------------------------------------------------------------------------
 # DB helpers
 # ---------------------------------------------------------------------------
 async def _is_known_user(telegram_user_id: int) -> bool:
-    from app.database import AsyncSessionLocal
     from app.models.users import UserProfile
     from sqlalchemy import select
 
-    async with AsyncSessionLocal() as session:
+    async with _get_bot_session() as session:
         result = await session.execute(
             select(UserProfile).where(UserProfile.telegram_user_id == telegram_user_id)
         )
@@ -116,10 +128,9 @@ async def confirm_adult(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     d = context.user_data
     telegram_user_id = update.effective_user.id
 
-    from app.database import AsyncSessionLocal
     from app.models.users import UserProfile, StaticPreference
 
-    async with AsyncSessionLocal() as session:
+    async with _get_bot_session() as session:
         profile = UserProfile(
             name=d["name"],
             role="adult",
@@ -207,10 +218,9 @@ async def confirm_baby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
     d = context.user_data
 
-    from app.database import AsyncSessionLocal
     from app.models.users import UserProfile, StaticPreference
 
-    async with AsyncSessionLocal() as session:
+    async with _get_bot_session() as session:
         profile = UserProfile(
             name=d["baby_name"],
             role="baby",
@@ -280,7 +290,16 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 # Bot runner — dedicated thread + event loop
 # ---------------------------------------------------------------------------
 async def _run_bot(token: str) -> None:
-    global _application
+    global _application, _BotSession
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from app.config import settings as _settings
+
+    _bot_engine = create_async_engine(_settings.database_url, echo=False)
+    _BotSession = async_sessionmaker(
+        bind=_bot_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
 
     adult_onboarding = ConversationHandler(
         entry_points=[CommandHandler("start", onboard_start)],
