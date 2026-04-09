@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from datetime import date
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -62,6 +61,46 @@ async def _job_receipt_expiry_cleanup():
         logger.exception("receipt_expiry_cleanup job failed")
 
 
+async def _job_post_dinner_prompt():
+    """Send a post-dinner rating prompt to the group chat for tonight's dinner slot."""
+    try:
+        from app.services.telegram_bot import get_application
+        from app.database import AsyncSessionLocal
+        from app.models.meal_plan import MealPlanSlot
+        from app.models.recipe import Recipe
+        from app.config import settings
+        from sqlalchemy import select
+
+        bot_app = get_application()
+        if not bot_app or not settings.telegram_group_chat_id:
+            return
+
+        today = date.today()
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(MealPlanSlot)
+                .where(MealPlanSlot.date == today, MealPlanSlot.meal_type == "dinner")
+                .limit(1)
+            )
+            slot = result.scalar_one_or_none()
+            if not slot or not slot.recipe_id:
+                return
+
+            recipe_result = await session.execute(
+                select(Recipe).where(Recipe.id == slot.recipe_id)
+            )
+            recipe = recipe_result.scalar_one_or_none()
+            if not recipe:
+                return
+
+        await bot_app.bot.send_message(
+            chat_id=int(settings.telegram_group_chat_id),
+            text=f"How was {recipe.name} tonight? Reply with 👍, 👎, or skip.",
+        )
+    except Exception:
+        logger.exception("post_dinner_prompt job failed")
+
+
 async def _job_weekly_summary():
     try:
         logger.info("TODO: send weekly summary via Telegram")
@@ -101,6 +140,12 @@ def start_scheduler():
         _job_receipt_expiry_cleanup,
         trigger=CronTrigger(hour=2, minute=0),
         id="receipt_expiry_cleanup",
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        _job_post_dinner_prompt,
+        trigger=CronTrigger(hour=19, minute=0),
+        id="post_dinner_prompt",
         replace_existing=True,
     )
     _scheduler.add_job(
