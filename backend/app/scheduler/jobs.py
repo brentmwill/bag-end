@@ -64,15 +64,15 @@ async def _job_receipt_expiry_cleanup():
 async def _job_post_dinner_prompt():
     """Send a post-dinner rating prompt to the group chat for tonight's dinner slot."""
     try:
-        from app.services.telegram_bot import get_application
+        from app.services.telegram_bot import get_bot
         from app.database import AsyncSessionLocal
         from app.models.meal_plan import MealPlanSlot
         from app.models.recipe import Recipe
         from app.config import settings
         from sqlalchemy import select
 
-        bot_app = get_application()
-        if not bot_app or not settings.telegram_group_chat_id:
+        bot = get_bot()
+        if not bot or not settings.telegram_group_chat_id:
             return
 
         today = date.today()
@@ -93,7 +93,7 @@ async def _job_post_dinner_prompt():
             if not recipe:
                 return
 
-        await bot_app.bot.send_message(
+        await bot.send_message(
             chat_id=int(settings.telegram_group_chat_id),
             text=f"How was {recipe.name} tonight? Reply with 👍, 👎, or skip.",
         )

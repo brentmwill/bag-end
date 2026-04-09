@@ -1,7 +1,9 @@
+import asyncio
 import logging
+import threading
 from datetime import date
 
-from telegram import Update
+from telegram import Bot, Update
 from telegram.ext import (
     Application,
     ApplicationBuilder,
@@ -23,13 +25,17 @@ ASK_NAME, ASK_DIETARY, ASK_VETOES, ASK_CUISINE, CONFIRM_ADULT = range(5)
 ASK_BABY_NAME, ASK_BABY_DOB, ASK_BABY_ALLERGENS, CONFIRM_BABY = range(10, 14)
 
 # ---------------------------------------------------------------------------
-# Module-level application instance (set by build_application)
+# Module-level state
 # ---------------------------------------------------------------------------
+_bot_thread: threading.Thread | None = None
+_bot_loop: asyncio.AbstractEventLoop | None = None
 _application: Application | None = None
 
 
-def get_application() -> Application | None:
-    return _application
+def get_bot() -> Bot | None:
+    if _application:
+        return _application.bot
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -64,7 +70,7 @@ async def onboard_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 
 async def got_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    print(f"DEBUG got_name called: {update.message.text}", flush=True)
+    logger.info("got_name called: %s", update.message.text)
     context.user_data["name"] = update.message.text.strip()
     await update.message.reply_text(
         "Any dietary restrictions? (e.g. vegetarian, gluten-free) — or say 'none'."
@@ -255,7 +261,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def unknown_user_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Catch messages from unrecognized users and nudge them to onboard."""
     if update.effective_user and not await _is_known_user(update.effective_user.id):
         await update.message.reply_text(
             "Hey! I don't know you yet. Send /start to set up your profile."
@@ -267,16 +272,10 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 # ---------------------------------------------------------------------------
-# Application factory
+# Bot runner — dedicated thread + event loop
 # ---------------------------------------------------------------------------
-def build_application() -> Application | None:
+async def _run_bot(token: str) -> None:
     global _application
-
-    if not settings.telegram_bot_token:
-        logger.warning("TELEGRAM_BOT_TOKEN not set — Telegram bot will not start")
-        return None
-
-    app = ApplicationBuilder().token(settings.telegram_bot_token).build()
 
     adult_onboarding = ConversationHandler(
         entry_points=[CommandHandler("start", onboard_start)],
@@ -305,6 +304,7 @@ def build_application() -> Application | None:
         per_chat=True,
     )
 
+    app = ApplicationBuilder().token(token).build()
     app.add_handler(adult_onboarding)
     app.add_handler(baby_onboarding)
     app.add_handler(CommandHandler("plan", plan_command))
@@ -313,4 +313,50 @@ def build_application() -> Application | None:
     app.add_error_handler(error_handler)
 
     _application = app
-    return app
+
+    async with app:
+        await app.start()
+        await app.updater.start_polling()
+        logger.info("Telegram bot polling started")
+        # Block until the stop event is set
+        await _stop_event.wait()
+        await app.updater.stop()
+        await app.stop()
+        logger.info("Telegram bot stopped")
+
+
+_stop_event: asyncio.Event | None = None
+
+
+def _thread_main(token: str) -> None:
+    global _bot_loop, _stop_event
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    _bot_loop = loop
+    _stop_event = asyncio.Event()
+    try:
+        loop.run_until_complete(_run_bot(token))
+    except Exception:
+        logger.exception("Telegram bot thread crashed")
+    finally:
+        loop.close()
+
+
+def start_bot() -> None:
+    global _bot_thread
+    if not settings.telegram_bot_token:
+        logger.warning("TELEGRAM_BOT_TOKEN not set — Telegram bot will not start")
+        return
+
+    _bot_thread = threading.Thread(target=_thread_main, args=(settings.telegram_bot_token,), daemon=True)
+    _bot_thread.start()
+    logger.info("Telegram bot thread started")
+
+
+def stop_bot() -> None:
+    global _bot_loop, _stop_event
+    if _bot_loop and _stop_event:
+        _bot_loop.call_soon_threadsafe(_stop_event.set)
+    if _bot_thread:
+        _bot_thread.join(timeout=10)
+    logger.info("Telegram bot thread joined")

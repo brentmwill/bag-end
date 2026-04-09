@@ -6,7 +6,7 @@ from app.config import settings
 from app.database import init_db
 from app.scheduler.jobs import start_scheduler, stop_scheduler
 from app.routers import glance, interact, recipes, meal_plan, baby, freezer
-from app.services.telegram_bot import build_application
+from app.services.telegram_bot import start_bot, stop_bot
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,20 +18,11 @@ logging.basicConfig(
 async def lifespan(app: FastAPI):
     await init_db()
     start_scheduler()
-
-    telegram_app = build_application()
-    if telegram_app:
-        await telegram_app.initialize()
-        await telegram_app.start()
-        await telegram_app.updater.start_polling()
+    start_bot()
 
     yield
 
-    if telegram_app:
-        await telegram_app.updater.stop()
-        await telegram_app.stop()
-        await telegram_app.shutdown()
-
+    stop_bot()
     stop_scheduler()
 
 
