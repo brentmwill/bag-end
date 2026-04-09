@@ -82,7 +82,6 @@ async def onboard_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 
 async def got_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    print(f"DEBUG got_name called: {update.message.text}", flush=True)
     context.user_data["name"] = update.message.text.strip()
     await update.message.reply_text(
         "Any dietary restrictions? (e.g. vegetarian, gluten-free) — or say 'none'."
@@ -271,15 +270,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def unknown_user_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    print(f"DEBUG unknown_user_prompt: {update.message.text if update.message else 'no msg'}", flush=True)
     if update.effective_user and not await _is_known_user(update.effective_user.id):
         await update.message.reply_text(
             "Hey! I don't know you yet. Send /start to set up your profile."
         )
-
-
-async def debug_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    print(f"DEBUG all_messages: {update.message.text if update.message else repr(update)}", flush=True)
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -329,7 +323,6 @@ async def _run_bot(token: str) -> None:
     )
 
     app = ApplicationBuilder().token(token).build()
-    app.add_handler(MessageHandler(filters.ALL, debug_all), group=-1)
     app.add_handler(adult_onboarding)
     app.add_handler(baby_onboarding)
     app.add_handler(CommandHandler("plan", plan_command))
