@@ -261,6 +261,10 @@ async def unknown_user_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
 
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logger.exception("Telegram bot error", exc_info=context.error)
+
+
 # ---------------------------------------------------------------------------
 # Application factory
 # ---------------------------------------------------------------------------
@@ -305,6 +309,7 @@ def build_application() -> Application | None:
     app.add_handler(CommandHandler("plan", plan_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_user_prompt))
+    app.add_error_handler(error_handler)
 
     _application = app
     return app
