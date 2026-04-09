@@ -64,6 +64,7 @@ async def onboard_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 
 async def got_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    print(f"DEBUG got_name called: {update.message.text}", flush=True)
     context.user_data["name"] = update.message.text.strip()
     await update.message.reply_text(
         "Any dietary restrictions? (e.g. vegetarian, gluten-free) — or say 'none'."

@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,6 +7,11 @@ from app.database import init_db
 from app.scheduler.jobs import start_scheduler, stop_scheduler
 from app.routers import glance, interact, recipes, meal_plan, baby, freezer
 from app.services.telegram_bot import build_application
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(name)s %(levelname)s %(message)s",
+)
 
 
 @asynccontextmanager
