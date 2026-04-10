@@ -86,10 +86,10 @@ async def _classify_feedback(recipe_name: str, feedback: str) -> dict:
         "}\n\n"
         "Rules:\n"
         "- recipe_note: something specific to improve this recipe next time (e.g. 'reduce lemon', 'add more garlic')\n"
-        "- preference_update: a general personal preference revealed (e.g. 'dislikes tilapia', 'prefers less spice')\n"
-        "- needs_clarification=true only if ambiguous whether feedback is specific to this recipe or a general preference\n"
+        "- preference_update: ONLY set this if the person clearly expresses a general aversion or dislike (e.g. 'I hate tilapia', 'I can't stand cilantro', 'I don't like spicy food'). A request to tweak a recipe (e.g. 'more cheese', 'less salt') is NOT a general preference — leave preference_update null.\n"
+        "- needs_clarification=true only if it's genuinely ambiguous whether this is a one-time recipe note or a strong personal aversion\n"
         "- If clearly recipe-specific: recipe_note set, preference_update null, needs_clarification false\n"
-        "- If clearly personal preference: preference_update set, recipe_note may also be set, needs_clarification false"
+        "- If clearly a personal aversion: preference_update set, recipe_note may also be set, needs_clarification false"
     )
     response = await client.messages.create(
         model="claude-haiku-4-5-20251001",
