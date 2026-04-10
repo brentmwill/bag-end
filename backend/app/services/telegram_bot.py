@@ -96,7 +96,8 @@ async def _classify_feedback(recipe_name: str, feedback: str) -> dict:
         max_tokens=256,
         messages=[{"role": "user", "content": prompt}],
     )
-    return json.loads(response.content[0].text)
+    raw = response.content[0].text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    return json.loads(raw)
 
 
 async def _resolve_clarification(recipe_name: str, original_note: str, clarification_answer: str) -> dict:
@@ -119,7 +120,8 @@ async def _resolve_clarification(recipe_name: str, original_note: str, clarifica
         max_tokens=128,
         messages=[{"role": "user", "content": prompt}],
     )
-    return json.loads(response.content[0].text)
+    raw = response.content[0].text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    return json.loads(raw)
 
 
 async def _store_feedback_result(session, user_profile_id, recipe_id, telegram_user_id: int, result: dict) -> None:
