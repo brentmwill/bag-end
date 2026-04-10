@@ -40,9 +40,20 @@ async def _job_generate_digest():
 async def _job_midnight_reset():
     try:
         from app.services.glance_cache import set_cache
+        from app.database import AsyncSessionLocal
+        from app.models.feedback import PendingRating
+        from sqlalchemy import delete
+        from datetime import datetime, timezone
+
         set_cache({})
         logger.info("midnight_reset: glance cache invalidated for new day")
-        # TODO: optionally delete today's BabyMealSlots from the previous day via DB session
+
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                delete(PendingRating).where(PendingRating.expires_at < datetime.now(timezone.utc))
+            )
+            await session.commit()
+            logger.info("midnight_reset: cleared %d expired pending ratings", result.rowcount)
     except Exception:
         logger.exception("midnight_reset job failed")
 
@@ -62,27 +73,36 @@ async def _job_receipt_expiry_cleanup():
 
 
 async def _job_post_dinner_prompt():
-    """Send a post-dinner rating prompt to the group chat for tonight's dinner slot."""
+    """DM each registered adult user asking them to rate tonight's dinner."""
     try:
         from app.services.telegram_bot import get_bot
         from app.database import AsyncSessionLocal
         from app.models.meal_plan import MealPlanSlot
         from app.models.recipe import Recipe
-        from app.config import settings
+        from app.models.users import UserProfile
+        from app.models.feedback import PendingRating
         from sqlalchemy import select
+        from datetime import datetime, timedelta, time as dtime
+        from zoneinfo import ZoneInfo
 
         bot = get_bot()
-        if not bot or not settings.telegram_group_chat_id:
+        if not bot:
             return
 
-        today = date.today()
+        eastern = ZoneInfo("America/New_York")
+        now_eastern = datetime.now(eastern)
+        midnight_eastern = datetime.combine(
+            now_eastern.date() + timedelta(days=1), dtime(0, 0), tzinfo=eastern
+        )
+        today = now_eastern.date()
+
         async with AsyncSessionLocal() as session:
-            result = await session.execute(
+            slot_result = await session.execute(
                 select(MealPlanSlot)
                 .where(MealPlanSlot.date == today, MealPlanSlot.meal_type == "dinner")
                 .limit(1)
             )
-            slot = result.scalar_one_or_none()
+            slot = slot_result.scalar_one_or_none()
             if not slot or not slot.recipe_id:
                 return
 
@@ -93,10 +113,39 @@ async def _job_post_dinner_prompt():
             if not recipe:
                 return
 
-        await bot.send_message(
-            chat_id=int(settings.telegram_group_chat_id),
-            text=f"How was {recipe.name} tonight? Reply with 👍, 👎, or skip.",
-        )
+            users_result = await session.execute(
+                select(UserProfile).where(
+                    UserProfile.role == "adult",
+                    UserProfile.telegram_user_id.is_not(None),
+                )
+            )
+            users = users_result.scalars().all()
+
+            for user in users:
+                existing_result = await session.execute(
+                    select(PendingRating).where(
+                        PendingRating.user_id == user.id,
+                        PendingRating.slot_id == slot.id,
+                    )
+                )
+                if not existing_result.scalar_one_or_none():
+                    session.add(PendingRating(
+                        user_id=user.id,
+                        slot_id=slot.id,
+                        state="awaiting_rating",
+                        expires_at=midnight_eastern,
+                    ))
+            await session.commit()
+
+        for user in users:
+            try:
+                await bot.send_message(
+                    chat_id=user.telegram_user_id,
+                    text=f"How was {recipe.name} tonight? Reply with a rating 1–5, or 'skip'.",
+                )
+            except Exception:
+                logger.exception("Failed to DM user %s for dinner rating", user.telegram_user_id)
+
     except Exception:
         logger.exception("post_dinner_prompt job failed")
 

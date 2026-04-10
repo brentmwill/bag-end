@@ -5,6 +5,7 @@ from app.models.pantry import Receipt, ReceiptItem
 from app.models.users import UserProfile, UserPreferenceEvent
 from app.models.cache import DigestCache, WordOfDayCache
 from app.models.ops import IntegrationSyncLog, BackgroundJobLog
+from app.models.feedback import PendingRating, RecipeFeedback
 
 __all__ = [
     "Recipe",
@@ -22,4 +23,6 @@ __all__ = [
     "WordOfDayCache",
     "IntegrationSyncLog",
     "BackgroundJobLog",
+    "PendingRating",
+    "RecipeFeedback",
 ]

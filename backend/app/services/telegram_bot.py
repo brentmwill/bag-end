@@ -1,7 +1,8 @@
 import asyncio
+import json
 import logging
 import threading
-from datetime import date
+from datetime import date, datetime, timezone
 
 from telegram import Bot, Update
 from telegram.ext import (
@@ -63,6 +64,205 @@ async def _is_known_user(telegram_user_id: int) -> bool:
             select(UserProfile).where(UserProfile.telegram_user_id == telegram_user_id)
         )
         return result.scalar_one_or_none() is not None
+
+
+# ---------------------------------------------------------------------------
+# Haiku classification helpers
+# ---------------------------------------------------------------------------
+async def _classify_feedback(recipe_name: str, feedback: str) -> dict:
+    import anthropic
+
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+    prompt = (
+        f"You are analyzing post-dinner feedback from a family member.\n\n"
+        f"Dinner: {recipe_name}\n"
+        f'Feedback: "{feedback}"\n\n'
+        "Classify this feedback and return JSON only (no markdown):\n"
+        "{\n"
+        '  "recipe_note": "<concise note for this recipe, or null>",\n'
+        '  "preference_update": "<personal preference to add to profile, or null>",\n'
+        '  "needs_clarification": <true or false>,\n'
+        '  "clarifying_question": "<question to ask, or null>"\n'
+        "}\n\n"
+        "Rules:\n"
+        "- recipe_note: something specific to improve this recipe next time (e.g. 'reduce lemon', 'add more garlic')\n"
+        "- preference_update: a general personal preference revealed (e.g. 'dislikes tilapia', 'prefers less spice')\n"
+        "- needs_clarification=true only if ambiguous whether feedback is specific to this recipe or a general preference\n"
+        "- If clearly recipe-specific: recipe_note set, preference_update null, needs_clarification false\n"
+        "- If clearly personal preference: preference_update set, recipe_note may also be set, needs_clarification false"
+    )
+    response = await client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=256,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return json.loads(response.content[0].text)
+
+
+async def _resolve_clarification(recipe_name: str, original_note: str, clarification_answer: str) -> dict:
+    import anthropic
+
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+    prompt = (
+        f"You are finalizing feedback classification after a clarifying answer.\n\n"
+        f"Dinner: {recipe_name}\n"
+        f'Original feedback: "{original_note}"\n'
+        f'Clarification answer: "{clarification_answer}"\n\n'
+        "Return JSON only (no markdown):\n"
+        "{\n"
+        '  "recipe_note": "<concise note for this recipe, or null>",\n'
+        '  "preference_update": "<personal preference to add to profile, or null>"\n'
+        "}"
+    )
+    response = await client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=128,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return json.loads(response.content[0].text)
+
+
+async def _store_feedback_result(session, user_profile_id, recipe_id, telegram_user_id: int, result: dict) -> None:
+    """Persist recipe_note and/or preference_update from a classification result."""
+    from app.models.feedback import RecipeFeedback
+    from app.services.preferences import append_preference
+
+    if result.get("recipe_note") and recipe_id:
+        session.add(RecipeFeedback(
+            user_id=user_profile_id,
+            recipe_id=recipe_id,
+            note=result["recipe_note"],
+        ))
+    if result.get("preference_update"):
+        append_preference(telegram_user_id, result["preference_update"])
+
+
+# ---------------------------------------------------------------------------
+# Rating state machine — handles incoming DM text
+# ---------------------------------------------------------------------------
+async def handle_dm_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Routes incoming private DMs through the rating state machine.
+    Falls through to unknown-user prompt if no active pending rating.
+    """
+    user = update.effective_user
+    if not user or not update.message:
+        return
+
+    text = update.message.text.strip()
+    now_utc = datetime.now(timezone.utc)
+
+    from app.models.feedback import PendingRating, RecipeFeedback
+    from app.models.meal_plan import MealPlanSlot
+    from app.models.recipe import Recipe
+    from app.models.users import UserProfile
+    from sqlalchemy import select
+
+    async with _get_bot_session() as session:
+        user_result = await session.execute(
+            select(UserProfile).where(UserProfile.telegram_user_id == user.id)
+        )
+        user_profile = user_result.scalar_one_or_none()
+
+        if not user_profile:
+            await update.message.reply_text(
+                "Hey! I don't know you yet. Send /start to set up your profile."
+            )
+            return
+
+        pr_result = await session.execute(
+            select(PendingRating).where(
+                PendingRating.user_id == user_profile.id,
+                PendingRating.state != "complete",
+                PendingRating.expires_at > now_utc,
+            ).limit(1)
+        )
+        pr = pr_result.scalar_one_or_none()
+
+        if not pr:
+            # Known user, nothing pending — ignore
+            return
+
+        # Resolve recipe context
+        slot_result = await session.execute(
+            select(MealPlanSlot).where(MealPlanSlot.id == pr.slot_id)
+        )
+        slot = slot_result.scalar_one_or_none()
+        recipe_name = "tonight's dinner"
+        recipe_id = None
+        if slot and slot.recipe_id:
+            recipe_result = await session.execute(
+                select(Recipe).where(Recipe.id == slot.recipe_id)
+            )
+            recipe = recipe_result.scalar_one_or_none()
+            if recipe:
+                recipe_name = recipe.name
+                recipe_id = recipe.id
+
+        # --- State: awaiting_rating ---
+        if pr.state == "awaiting_rating":
+            if text.lower() == "skip":
+                pr.state = "complete"
+                await session.commit()
+                await update.message.reply_text("No problem, skipping tonight's rating.")
+                return
+
+            try:
+                rating = int(text)
+                if not 1 <= rating <= 5:
+                    raise ValueError
+            except ValueError:
+                await update.message.reply_text("Please reply with a number 1–5, or 'skip'.")
+                return
+
+            pr.rating = rating
+            pr.state = "awaiting_feedback"
+            await session.commit()
+            await update.message.reply_text("Thanks! Anything you'd change about it? (or say 'no')")
+
+        # --- State: awaiting_feedback ---
+        elif pr.state == "awaiting_feedback":
+            if text.lower() in ("no", "nope", "nothing", "n", "nah"):
+                pr.state = "complete"
+                await session.commit()
+                await update.message.reply_text("Got it!")
+                return
+
+            try:
+                result = await _classify_feedback(recipe_name, text)
+            except Exception:
+                logger.exception("Haiku classification failed")
+                pr.state = "complete"
+                await session.commit()
+                await update.message.reply_text("Thanks, I've noted that.")
+                return
+
+            if result.get("needs_clarification"):
+                pr.pending_note = text
+                pr.state = "awaiting_clarification"
+                await session.commit()
+                await update.message.reply_text(result["clarifying_question"])
+            else:
+                await _store_feedback_result(session, user_profile.id, recipe_id, user.id, result)
+                pr.state = "complete"
+                await session.commit()
+                await update.message.reply_text("Got it, I've noted that for next time!")
+
+        # --- State: awaiting_clarification ---
+        elif pr.state == "awaiting_clarification":
+            try:
+                result = await _resolve_clarification(recipe_name, pr.pending_note or "", text)
+            except Exception:
+                logger.exception("Haiku clarification resolution failed")
+                pr.state = "complete"
+                await session.commit()
+                await update.message.reply_text("Thanks, I've noted that.")
+                return
+
+            await _store_feedback_result(session, user_profile.id, recipe_id, user.id, result)
+            pr.state = "complete"
+            await session.commit()
+            await update.message.reply_text("Got it, I've noted that for next time!")
 
 
 # ---------------------------------------------------------------------------
@@ -269,13 +469,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     )
 
 
-async def unknown_user_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user and not await _is_known_user(update.effective_user.id):
-        await update.message.reply_text(
-            "Hey! I don't know you yet. Send /start to set up your profile."
-        )
-
-
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.exception("Telegram bot error", exc_info=context.error)
 
@@ -327,7 +520,12 @@ async def _run_bot(token: str) -> None:
     app.add_handler(baby_onboarding)
     app.add_handler(CommandHandler("plan", plan_command))
     app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_user_prompt))
+    # Rating state machine — handles DM text for registered users.
+    # Unknown users get the registration prompt from inside handle_dm_text.
+    app.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE,
+        handle_dm_text,
+    ))
     app.add_error_handler(error_handler)
 
     _application = app
@@ -336,7 +534,6 @@ async def _run_bot(token: str) -> None:
         await app.start()
         await app.updater.start_polling()
         logger.info("Telegram bot polling started")
-        # Block until the stop event is set
         await _stop_event.wait()
         await app.updater.stop()
         await app.stop()
