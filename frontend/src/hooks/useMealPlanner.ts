@@ -19,23 +19,21 @@ export interface Filters {
   finger_food: boolean;
 }
 
-function getMondayOfWeek(d: Date): Date {
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  const monday = new Date(d);
-  monday.setDate(d.getDate() + diff);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
+function getSundayOfWeek(d: Date): Date {
+  const sunday = new Date(d);
+  sunday.setDate(d.getDate() - d.getDay()); // getDay: Sun=0, so this always lands on Sunday
+  sunday.setHours(0, 0, 0, 0);
+  return sunday;
 }
 
 function toDateStr(d: Date): string {
   return d.toISOString().split('T')[0];
 }
 
-function buildWeekDays(monday: Date): WeekDay[] {
+function buildWeekDays(sunday: Date): WeekDay[] {
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
+    const d = new Date(sunday);
+    d.setDate(sunday.getDate() + i);
     return {
       date: toDateStr(d),
       label: d.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' }),
@@ -49,12 +47,12 @@ function buildWeekDays(monday: Date): WeekDay[] {
 }
 
 export function useMealPlanner() {
-  const monday = getMondayOfWeek(new Date());
-  const weekStart = toDateStr(monday);
-  const weekEnd = toDateStr(new Date(monday.getTime() + 6 * 86400000));
+  const sunday = getSundayOfWeek(new Date());
+  const weekStart = toDateStr(sunday);
+  const weekEnd = toDateStr(new Date(sunday.getTime() + 6 * 86400000));
 
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [weekDays, setWeekDays] = useState<WeekDay[]>(buildWeekDays(monday));
+  const [weekDays, setWeekDays] = useState<WeekDay[]>(buildWeekDays(sunday));
   const [filters, setFilters] = useState<Filters>({
     categories: [],
     pregnancy_safe: false,
@@ -101,7 +99,7 @@ export function useMealPlanner() {
 
   // Fetch baby lunch suggestions for weekdays
   useEffect(() => {
-    const weekdayDates = buildWeekDays(monday)
+    const weekdayDates = buildWeekDays(sunday)
       .filter(d => d.isWeekday)
       .map(d => d.date);
 
