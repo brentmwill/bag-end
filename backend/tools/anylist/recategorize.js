@@ -69,9 +69,15 @@ try {
   for (const item of uncategorized) {
     const cat = guessCategory(item.name);
     if (cat) {
-      item.categoryMatchId = cat;
-      await item.save();
-      updated.push({ name: item.name, category: cat });
+      try {
+        item.categoryMatchId = cat;
+        await item.save();
+        updated.push({ name: item.name, category: cat });
+        process.stderr.write(`  OK: "${item.name}" → ${cat}\n`);
+      } catch (err) {
+        process.stderr.write(`  FAIL: "${item.name}" → ${err.message}\n`);
+        unmatched.push(item.name + ' [save failed]');
+      }
     } else {
       unmatched.push(item.name);
     }
