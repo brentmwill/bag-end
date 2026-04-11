@@ -10,6 +10,7 @@ from app.services import google_calendar as calendar_svc
 from app.services import google_maps as maps_svc
 from app.services import trello as trello_svc
 from app.services import anylist as anylist_svc
+from app.services import sports as sports_svc
 from app.config import settings
 
 _cache: dict = {}
@@ -44,6 +45,9 @@ async def refresh_glance() -> dict:
 
         # TODO: fetch Trello household tasks
         trello_tasks = await trello_svc.fetch_tasks()
+
+        # Fetch sports scores/schedules
+        sports_teams = await sports_svc.fetch_sports()
 
         # TODO: fetch AnyList grocery list
         grocery_list = await anylist_svc.fetch_grocery_list()  # noqa: F841
@@ -118,6 +122,7 @@ async def refresh_glance() -> dict:
                 "trello_tasks": trello_tasks,
                 "baby_meal_slots": baby_meal_slots,
                 "freezer_items": freezer_items,
+                "sports_teams": sports_teams,
             },
             "ambient": {
                 "word_of_day": word_of_day,

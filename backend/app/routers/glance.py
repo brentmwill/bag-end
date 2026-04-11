@@ -24,6 +24,7 @@ class HouseholdView(BaseModel):
     trello_tasks: Any = None
     baby_meal_slots: Any = None
     freezer_items: Any = None
+    sports_teams: Any = None
 
 
 class AmbientView(BaseModel):

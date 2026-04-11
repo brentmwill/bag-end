@@ -81,10 +81,29 @@ export interface PlanningView {
   calendar_week: CalendarEvent[];
 }
 
+export interface SportsGame {
+  opponent: string;
+  opponent_name: string;
+  home: boolean;
+  completed: boolean;
+  date: string | null;
+  time: string | null;
+  score?: string;
+  won?: boolean;
+}
+
+export interface SportsTeam {
+  id: string;
+  label: string;
+  last_game: SportsGame | null;
+  next_game: SportsGame | null;
+}
+
 export interface HouseholdView {
   trello_tasks: TrelloTask[];
   baby_meal_slots: BabyMealSlot[];
   freezer_items: FreezerItem[];
+  sports_teams: SportsTeam[];
 }
 
 export interface AmbientView {

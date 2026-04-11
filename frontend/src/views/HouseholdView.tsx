@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GlanceData, TrelloTask, BabyMealSlot, FreezerItem } from '../types';
+import { GlanceData, TrelloTask, BabyMealSlot, FreezerItem, SportsTeam, SportsGame } from '../types';
 import styles from './HouseholdView.module.css';
 
 interface Props {
@@ -36,6 +36,26 @@ function formatFrozenDate(dateStr: string): string {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
+function formatGameDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function lastGameLabel(g: SportsGame): string {
+  const vs = g.home ? `vs ${g.opponent}` : `@ ${g.opponent}`;
+  if (g.score !== undefined && g.won !== undefined) {
+    return `${g.won ? 'W' : 'L'} ${g.score} ${vs}`;
+  }
+  return vs;
+}
+
+function nextGameLabel(g: SportsGame): string {
+  const vs = g.home ? `vs ${g.opponent}` : `@ ${g.opponent}`;
+  const date = g.date ? formatGameDate(g.date) : '';
+  const time = g.time ?? '';
+  return [date, vs, time].filter(Boolean).join(' ');
+}
+
 interface TrelloGroup {
   list_name: string;
   tasks: TrelloTask[];
@@ -55,6 +75,7 @@ export default function HouseholdView({ data }: Props) {
   const [time, setTime] = useState(() =>
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   );
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -63,10 +84,21 @@ export default function HouseholdView({ data }: Props) {
     return () => clearInterval(id);
   }, []);
 
+  async function handleComplete(cardId: string) {
+    setCompletedIds(prev => new Set(prev).add(cardId));
+    try {
+      await fetch(`/api/tasks/${cardId}/complete`, { method: 'POST' });
+    } catch {
+      // leave it visually dismissed — will be gone on next glance refresh
+    }
+  }
+
   const household = data?.household ?? null;
-  const tasks: TrelloTask[] = household?.trello_tasks ?? [];
+  const allTasks: TrelloTask[] = household?.trello_tasks ?? [];
+  const tasks = allTasks.filter(t => !completedIds.has(t.id));
   const babySlots: BabyMealSlot[] = household?.baby_meal_slots ?? [];
   const freezerItems: FreezerItem[] = household?.freezer_items ?? [];
+  const sportsTeams: SportsTeam[] = household?.sports_teams ?? [];
 
   const trelloGroups = groupByList(tasks);
 
@@ -94,7 +126,13 @@ export default function HouseholdView({ data }: Props) {
                 <div className={styles.trelloGroupHeader}>{group.list_name}</div>
                 {group.tasks.map(task => (
                   <div key={task.id} className={styles.trelloTask}>
-                    <div className={`${styles.taskCheckbox} ${task.completed ? styles.taskCheckboxDone : ''}`}>
+                    <div
+                      className={`${styles.taskCheckbox} ${task.completed ? styles.taskCheckboxDone : ''}`}
+                      onClick={() => handleComplete(task.id)}
+                      role="checkbox"
+                      aria-checked={task.completed}
+                      style={{ cursor: 'pointer' }}
+                    >
                       {task.completed && <span className={styles.taskCheckIcon}>✓</span>}
                     </div>
                     <div className={styles.taskContent}>
@@ -166,6 +204,26 @@ export default function HouseholdView({ data }: Props) {
           </div>
         )}
       </div>
+
+      {/* Sports */}
+      {sportsTeams.length > 0 && (
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>Sports</div>
+          <div className={styles.sportsList}>
+            {sportsTeams.map((team: SportsTeam) => (
+              <div key={team.id} className={styles.sportsRow}>
+                <span className={styles.sportsTeam}>{team.label}</span>
+                <span className={`${styles.sportsLast} ${team.last_game?.won === true ? styles.sportsWin : team.last_game?.won === false ? styles.sportsLoss : ''}`}>
+                  {team.last_game ? lastGameLabel(team.last_game) : '—'}
+                </span>
+                <span className={styles.sportsNext}>
+                  {team.next_game ? nextGameLabel(team.next_game) : 'Off-season'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
