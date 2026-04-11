@@ -128,18 +128,25 @@ async def push_to_anylist(data: PushToAnyListRequest, db: AsyncSession = Depends
     if not slots:
         raise HTTPException(status_code=404, detail="No recipes planned for this week")
 
-    # Collect unique ingredients across all recipes, with recipe names as notes
-    seen: set[str] = set()
-    ingredients: list[dict] = []
+    # Collect unique ingredients across all recipes, accumulating recipe names as notes
+    ingredient_recipes: dict[str, list[str]] = {}
+    ingredient_display: dict[str, str] = {}
     for slot in slots:
         recipe = slot.recipe
         if not recipe:
             continue
         for ing in recipe.ingredients:
             key = ing.display_text.lower()
-            if key not in seen:
-                seen.add(key)
-                ingredients.append({"name": ing.display_text, "notes": recipe.name})
+            if key not in ingredient_recipes:
+                ingredient_recipes[key] = []
+                ingredient_display[key] = ing.display_text
+            if recipe.name not in ingredient_recipes[key]:
+                ingredient_recipes[key].append(recipe.name)
+
+    ingredients = [
+        {"name": ingredient_display[key], "notes": "; ".join(ingredient_recipes[key])}
+        for key in ingredient_display
+    ]
 
     try:
         result = await anylist_service.push_ingredients(ingredients, list_name=data.list_name)

@@ -100,7 +100,7 @@ process.stdin.on('end', async () => {
       }
 
       const categoryMatchId = guessCategory(itemName);
-      const item = client.createItem({ name: itemName, notes: ing.notes ?? '', categoryMatchId });
+      const item = client.createItem({ name: itemName, details: ing.notes ?? '', categoryMatchId });
       await list.addItem(item);
       added.push(itemName);
     }
