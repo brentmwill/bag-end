@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     anylist_password: str = ""
 
     google_calendar_credentials_path: str = ""
+    google_calendar_token_path: str = "token.json"
     google_calendar_ids: str = ""
 
     google_maps_api_key: str = ""
