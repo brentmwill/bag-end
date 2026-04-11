@@ -15,6 +15,7 @@ interface ViewDef {
 const VIEWS: ViewDef[] = [
   { name: 'home', label: 'Home' },
   { name: 'planning', label: 'Plan' },
+  { name: 'calendar', label: 'Cal' },
   { name: 'household', label: 'House' },
   { name: 'ambient', label: 'Ambient' },
 ];

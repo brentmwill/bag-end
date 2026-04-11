@@ -40,7 +40,10 @@ def _build_service():
     return build("calendar", "v3", credentials=creds, cache_discovery=False)
 
 
-async def fetch_calendar_events(days_ahead: int = 7) -> list[dict[str, Any]]:
+async def fetch_calendar_events(
+    days_ahead: int = 7,
+    time_min: datetime | None = None,
+) -> list[dict[str, Any]]:
     from app.config import settings
 
     calendar_ids = settings.google_calendar_id_list
@@ -53,31 +56,31 @@ async def fetch_calendar_events(days_ahead: int = 7) -> list[dict[str, Any]]:
         logger.exception("Failed to build Google Calendar service")
         return []
 
-    now = datetime.now(timezone.utc)
-    time_min = now.isoformat()
-    time_max = (now + timedelta(days=days_ahead)).isoformat()
+    start = time_min if time_min is not None else datetime.now(timezone.utc)
+    time_min_str = start.isoformat()
+    time_max_str = (start + timedelta(days=days_ahead)).isoformat()
 
     events = []
     for cal_id in calendar_ids:
         try:
             result = service.events().list(
                 calendarId=cal_id,
-                timeMin=time_min,
-                timeMax=time_max,
+                timeMin=time_min_str,
+                timeMax=time_max_str,
                 singleEvents=True,
                 orderBy="startTime",
-                maxResults=50,
+                maxResults=100,
             ).execute()
 
             for e in result.get("items", []):
-                start = e.get("start", {})
-                end = e.get("end", {})
+                start_field = e.get("start", {})
+                end_field = e.get("end", {})
                 events.append({
                     "id": e.get("id"),
-                    "summary": e.get("summary", "(No title)"),
-                    "start": start.get("dateTime") or start.get("date"),
-                    "end": end.get("dateTime") or end.get("date"),
-                    "all_day": "date" in start,
+                    "title": e.get("summary", "(No title)"),
+                    "start": start_field.get("dateTime") or start_field.get("date"),
+                    "end": end_field.get("dateTime") or end_field.get("date"),
+                    "all_day": "date" in start_field,
                     "calendar_id": cal_id,
                 })
         except Exception:

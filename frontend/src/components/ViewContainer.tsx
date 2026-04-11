@@ -3,6 +3,7 @@ import { GlanceData } from '../types';
 import { ViewName } from '../hooks/useViewCycle';
 import HomeView from '../views/HomeView';
 import PlanningView from '../views/PlanningView';
+import CalendarView from '../views/CalendarView';
 import HouseholdView from '../views/HouseholdView';
 import AmbientView from '../views/AmbientView';
 import LoadingState from './LoadingState';
@@ -32,6 +33,7 @@ export default function ViewContainer({ currentView, data, loading }: Props) {
     <div style={containerStyle}>
       {currentView === 'home' && <HomeView data={data} />}
       {currentView === 'planning' && <PlanningView data={data} />}
+      {currentView === 'calendar' && <CalendarView />}
       {currentView === 'household' && <HouseholdView data={data} />}
       {currentView === 'ambient' && <AmbientView data={data} />}
     </div>

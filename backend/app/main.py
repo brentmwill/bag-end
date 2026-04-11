@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db
 from app.scheduler.jobs import start_scheduler, stop_scheduler
-from app.routers import glance, interact, recipes, meal_plan, baby, freezer
+from app.routers import glance, interact, recipes, meal_plan, baby, freezer, calendar
 from app.services.telegram_bot import start_bot, stop_bot
 
 logging.basicConfig(
@@ -42,6 +42,7 @@ app.include_router(recipes.router)
 app.include_router(meal_plan.router)
 app.include_router(baby.router)
 app.include_router(freezer.router)
+app.include_router(calendar.router)
 
 
 @app.get("/health")

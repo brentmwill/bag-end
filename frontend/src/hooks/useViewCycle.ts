@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-export type ViewName = 'home' | 'planning' | 'household' | 'ambient';
+export type ViewName = 'home' | 'planning' | 'calendar' | 'household' | 'ambient';
 
-const VIEWS: ViewName[] = ['home', 'planning', 'household', 'ambient'];
+const VIEWS: ViewName[] = ['home', 'planning', 'calendar', 'household', 'ambient'];
 const CYCLE_MS = 45000;
 const INTERACT_TIMEOUT_MS = 30000;
 
