@@ -100,7 +100,9 @@ process.stdin.on('end', async () => {
       }
 
       const categoryMatchId = guessCategory(itemName);
-      const item = client.createItem({ name: itemName, details: ing.notes ?? '', categoryMatchId });
+      const itemOpts = { name: itemName, details: ing.notes ?? '', categoryMatchId };
+      if (ing.quantity) itemOpts.deprecatedQuantity = ing.quantity;
+      const item = client.createItem(itemOpts);
       await list.addItem(item);
       added.push(itemName);
     }

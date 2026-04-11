@@ -131,6 +131,7 @@ async def push_to_anylist(data: PushToAnyListRequest, db: AsyncSession = Depends
     # Collect unique ingredients across all recipes, accumulating recipe names as notes
     ingredient_recipes: dict[str, list[str]] = {}
     ingredient_display: dict[str, str] = {}
+    ingredient_quantity: dict[str, str | None] = {}
     for slot in slots:
         recipe = slot.recipe
         if not recipe:
@@ -140,11 +141,22 @@ async def push_to_anylist(data: PushToAnyListRequest, db: AsyncSession = Depends
             if key not in ingredient_recipes:
                 ingredient_recipes[key] = []
                 ingredient_display[key] = ing.display_text
+                # Build quantity string from DB fields where available
+                if ing.quantity and ing.unit:
+                    ingredient_quantity[key] = f"{ing.quantity} {ing.unit}"
+                elif ing.quantity:
+                    ingredient_quantity[key] = ing.quantity
+                else:
+                    ingredient_quantity[key] = None
             if recipe.name not in ingredient_recipes[key]:
                 ingredient_recipes[key].append(recipe.name)
 
     ingredients = [
-        {"name": ingredient_display[key], "notes": "; ".join(ingredient_recipes[key])}
+        {
+            "name": ingredient_display[key],
+            "notes": "; ".join(ingredient_recipes[key]),
+            "quantity": ingredient_quantity[key],
+        }
         for key in ingredient_display
     ]
 
