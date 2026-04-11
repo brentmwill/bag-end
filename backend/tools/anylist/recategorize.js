@@ -60,8 +60,9 @@ try {
     process.exit(1);
   }
 
-  const uncategorized = (list.items || []).filter(i => !i.categoryMatchId || i.categoryMatchId === 'other');
-  process.stderr.write(`Found ${uncategorized.length} uncategorized items in "${list_name}"\n`);
+  const activeItems = (list.items || []).filter(i => !i.checked);
+  const uncategorized = activeItems.filter(i => !i.categoryMatchId || i.categoryMatchId === 'other');
+  process.stderr.write(`Active items: ${activeItems.length}, uncategorized: ${uncategorized.length} in "${list_name}"\n`);
 
   const updated = [];
   const unmatched = [];
