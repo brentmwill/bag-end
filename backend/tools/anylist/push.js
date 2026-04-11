@@ -54,6 +54,31 @@ process.stdin.on('end', async () => {
       process.exit(1);
     }
 
+    // Build category lookup from all known items across every list
+    const categoryLookup = new Map(); // lowercase name → categoryMatchId
+    for (const lst of client.lists) {
+      for (const item of lst.items || []) {
+        if (item.categoryMatchId && item.categoryMatchId !== 'other') {
+          categoryLookup.set(item.name.toLowerCase(), item.categoryMatchId);
+        }
+      }
+    }
+
+    function guessCategory(ingredientName) {
+      const lower = ingredientName.toLowerCase();
+      if (categoryLookup.has(lower)) return categoryLookup.get(lower);
+      // Longest-substring match: prefer more specific known names
+      let best = 'other';
+      let bestLen = 0;
+      for (const [known, cat] of categoryLookup) {
+        if (lower.includes(known) && known.length > bestLen) {
+          best = cat;
+          bestLen = known.length;
+        }
+      }
+      return best;
+    }
+
     const added = [];
     const skipped = [];
     const unchecked = [];
@@ -74,7 +99,8 @@ process.stdin.on('end', async () => {
         continue;
       }
 
-      const item = client.createItem({ name: itemName, notes: ing.notes ?? '' });
+      const categoryMatchId = guessCategory(itemName);
+      const item = client.createItem({ name: itemName, notes: ing.notes ?? '', categoryMatchId });
       await list.addItem(item);
       added.push(itemName);
     }
