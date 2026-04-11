@@ -8,6 +8,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 TRELLO_API = "https://api.trello.com/1"
+DASHBOARD_LISTS = {"Recurring Daily Tasks", "Home Improvement", "Miscellaneous"}
 
 
 def _auth() -> dict:
@@ -23,10 +24,10 @@ async def fetch_tasks() -> list[dict[str, Any]]:
             # Fetch lists so we can include list name on each card
             lists_resp = await client.get(
                 f"{TRELLO_API}/boards/{settings.trello_board_id}/lists",
-                params={**_auth(), "filter": "open"},
+                params={**_auth(), "filter": "all"},
             )
             lists_resp.raise_for_status()
-            list_map = {l["id"]: l["name"] for l in lists_resp.json()}
+            list_map = {lst["id"]: lst["name"] for lst in lists_resp.json()}
 
             cards_resp = await client.get(
                 f"{TRELLO_API}/boards/{settings.trello_board_id}/cards",
@@ -43,6 +44,7 @@ async def fetch_tasks() -> list[dict[str, Any]]:
                 "list_name": list_map.get(c["idList"], ""),
             }
             for c in cards_resp.json()
+            if list_map.get(c["idList"]) in DASHBOARD_LISTS
         ]
     except Exception:
         logger.exception("Failed to fetch Trello tasks")
