@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useGlanceData } from './hooks/useGlanceData';
 import { useViewCycle } from './hooks/useViewCycle';
+import { useTheme } from './hooks/useTheme';
 import ViewContainer from './components/ViewContainer';
 import NavDots from './components/NavDots';
 import InteractOverlay from './components/InteractOverlay';
+import ThemePicker from './components/ThemePicker';
 
 const appRootStyle: CSSProperties = {
   position: 'relative',
@@ -23,6 +26,8 @@ export default function App() {
     goTo,
     activateInteract,
   } = useViewCycle();
+  const theme = useTheme();
+  const [themePickerOpen, setThemePickerOpen] = useState(false);
 
   return (
     <div
@@ -39,7 +44,18 @@ export default function App() {
       />
 
       {interactMode && (
-        <InteractOverlay advance={advance} retreat={retreat} />
+        <InteractOverlay
+          advance={advance}
+          retreat={retreat}
+          onOpenThemePicker={() => setThemePickerOpen(true)}
+        />
+      )}
+
+      {themePickerOpen && (
+        <ThemePicker
+          theme={theme}
+          onClose={() => setThemePickerOpen(false)}
+        />
       )}
     </div>
   );

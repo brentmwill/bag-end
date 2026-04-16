@@ -3,14 +3,22 @@ import styles from './InteractOverlay.module.css';
 interface Props {
   advance: () => void;
   retreat: () => void;
+  onOpenThemePicker: () => void;
 }
 
-export default function InteractOverlay({ advance, retreat }: Props) {
+export default function InteractOverlay({ advance, retreat, onOpenThemePicker }: Props) {
   return (
     <div className={styles.overlay} aria-hidden="true">
       {/* Top banner */}
       <div className={styles.banner}>
         <span className={styles.bannerText}>Interact mode — auto-cycle paused</span>
+        <button
+          className={styles.themeBtn}
+          onClick={onOpenThemePicker}
+          aria-label="Change theme"
+        >
+          ◈ Theme
+        </button>
       </div>
 
       {/* Left arrow */}
