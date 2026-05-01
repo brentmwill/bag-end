@@ -32,6 +32,12 @@ A web-based household command center for Brent, Danielle, and their baby. Displa
 - Ubuntu home server — same machine as ai-tutoring-system, different port
 - Tailscale IP: `100.104.206.14`
 - No public internet exposure
+- **systemd unit:** `bag-end-api.service`
+- **Restart:** `sudo systemctl restart bag-end-api`
+- **Project path:** `/home/eluse/projects/bag-end/backend/`
+- **venv:** `/home/eluse/projects/bag-end/backend/.venv` (note: different convention from Parma's sibling `ai-tutor-env`)
+- **Port:** 8001 (Parma is 8000)
+- **DB:** `bagend` user/db on local Postgres
 
 ## API Endpoints (aggregation layer)
 - `GET /api/glance` — full payload for all four display views, cached server-side
