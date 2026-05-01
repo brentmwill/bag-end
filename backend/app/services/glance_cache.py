@@ -52,7 +52,8 @@ async def refresh_glance() -> dict:
         # TODO: fetch AnyList grocery list
         grocery_list = await anylist_svc.fetch_grocery_list()  # noqa: F841
 
-        # TODO: fetch tonight's meal plan slot from DB
+        # tonight_meal is populated from today's dinner slot below, after the
+        # week query runs (avoids a second DB roundtrip)
         tonight_meal = None
 
         # TODO: fetch baby meal slots for today from DB
@@ -89,6 +90,11 @@ async def refresh_glance() -> dict:
             d = slot.date.isoformat()
             if slot.meal_type == "dinner":
                 by_date[d]["dinner"] = slot.recipe.name if slot.recipe else None
+                if slot.date == today and slot.recipe:
+                    tonight_meal = {
+                        "recipe_id": str(slot.recipe.id),
+                        "name": slot.recipe.name,
+                    }
             elif slot.meal_type == "baby_lunch":
                 by_date[d]["baby_lunch"] = slot.notes or (slot.recipe.name if slot.recipe else None)
             elif slot.meal_type == "baby_snack":

@@ -7,6 +7,7 @@ import ViewContainer from './components/ViewContainer';
 import NavDots from './components/NavDots';
 import InteractOverlay from './components/InteractOverlay';
 import ThemePicker from './components/ThemePicker';
+import CookingModeOverlay from './components/CookingModeOverlay';
 
 const appRootStyle: CSSProperties = {
   position: 'relative',
@@ -28,6 +29,7 @@ export default function App() {
   } = useViewCycle();
   const theme = useTheme();
   const [themePickerOpen, setThemePickerOpen] = useState(false);
+  const [cookingRecipeId, setCookingRecipeId] = useState<string | null>(null);
 
   return (
     <div
@@ -35,7 +37,12 @@ export default function App() {
       onMouseMove={activateInteract}
       onClick={activateInteract}
     >
-      <ViewContainer currentView={currentView} data={data} loading={loading} />
+      <ViewContainer
+        currentView={currentView}
+        data={data}
+        loading={loading}
+        onStartCooking={setCookingRecipeId}
+      />
 
       <NavDots
         currentView={currentView}
@@ -55,6 +62,13 @@ export default function App() {
         <ThemePicker
           theme={theme}
           onClose={() => setThemePickerOpen(false)}
+        />
+      )}
+
+      {cookingRecipeId && (
+        <CookingModeOverlay
+          recipeId={cookingRecipeId}
+          onClose={() => setCookingRecipeId(null)}
         />
       )}
     </div>

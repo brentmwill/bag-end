@@ -12,6 +12,7 @@ interface Props {
   currentView: ViewName;
   data: GlanceData | null;
   loading: boolean;
+  onStartCooking?: (recipeId: string) => void;
 }
 
 const containerStyle: CSSProperties = {
@@ -20,7 +21,7 @@ const containerStyle: CSSProperties = {
   overflow: 'hidden',
 };
 
-export default function ViewContainer({ currentView, data, loading }: Props) {
+export default function ViewContainer({ currentView, data, loading, onStartCooking }: Props) {
   if (loading && data === null) {
     return (
       <div style={containerStyle}>
@@ -31,7 +32,7 @@ export default function ViewContainer({ currentView, data, loading }: Props) {
 
   return (
     <div style={containerStyle}>
-      {currentView === 'home' && <HomeView data={data} />}
+      {currentView === 'home' && <HomeView data={data} onStartCooking={onStartCooking} />}
       {currentView === 'planning' && <PlanningView data={data} />}
       {currentView === 'calendar' && <CalendarView />}
       {currentView === 'household' && <HouseholdView data={data} />}

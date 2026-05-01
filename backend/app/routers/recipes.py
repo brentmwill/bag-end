@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 import anthropic
 from app.config import settings
 from app.database import get_db
@@ -37,6 +38,7 @@ class RecipeUpdate(BaseModel):
     rating: Optional[int] = None
     notes: Optional[str] = None
     categories: Optional[List[str]] = None
+    last_made_date: Optional[date] = None
 
 
 @router.get("/api/recipes")
@@ -69,7 +71,16 @@ async def list_recipes(
 
 @router.get("/api/recipes/{recipe_id}")
 async def get_recipe(recipe_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    recipe = await db.get(Recipe, recipe_id)
+    stmt = (
+        select(Recipe)
+        .where(Recipe.id == recipe_id)
+        .options(
+            selectinload(Recipe.steps),
+            selectinload(Recipe.ingredients),
+        )
+    )
+    result = await db.execute(stmt)
+    recipe = result.scalar_one_or_none()
     if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
     return recipe

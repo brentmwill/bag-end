@@ -4,6 +4,7 @@ import styles from './HomeView.module.css';
 
 interface Props {
   data: GlanceData | null;
+  onStartCooking?: (recipeId: string) => void;
 }
 
 function weatherEmoji(code: number): string {
@@ -58,7 +59,7 @@ function CommuteTileComponent({ tile }: { tile: CommuteTile | null }) {
   );
 }
 
-export default function HomeView({ data }: Props) {
+export default function HomeView({ data, onStartCooking }: Props) {
   const [time, setTime] = useState(() =>
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   );
@@ -98,7 +99,17 @@ export default function HomeView({ data }: Props) {
       <div className={styles.mealCard}>
         <div className={styles.mealLabel}>Tonight's Dinner</div>
         {home?.tonight_meal ? (
-          <div className={styles.mealName}>{home.tonight_meal}</div>
+          <div className={styles.mealRow}>
+            <div className={styles.mealName}>{home.tonight_meal.name}</div>
+            {onStartCooking && (
+              <button
+                className={styles.cookBtn}
+                onClick={() => onStartCooking(home.tonight_meal!.recipe_id)}
+              >
+                ▶ Cook
+              </button>
+            )}
+          </div>
         ) : (
           <div className={styles.mealEmpty}>No dinner planned</div>
         )}

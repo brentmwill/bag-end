@@ -68,9 +68,14 @@ export interface WordOfDay {
   example: string | null;
 }
 
+export interface TonightMeal {
+  recipe_id: string;
+  name: string;
+}
+
 export interface HomeView {
   weather: WeatherData | null;
-  tonight_meal: string | null;
+  tonight_meal: TonightMeal | null;
   calendar_events: CalendarEvent[];
   commute_tiles: CommuteTile[];
   digest_snippet: string | null;
@@ -124,6 +129,29 @@ export interface Recipe {
   baby_friendly: boolean;
   freezable: boolean;
   batch_cookable: boolean;
+}
+
+export interface RecipeStep {
+  id: string;
+  step_number: number;
+  instruction: string;
+}
+
+export interface RecipeIngredient {
+  id: string;
+  display_text: string;
+  quantity: string | null;
+  unit: string | null;
+}
+
+export interface RecipeDetail extends Recipe {
+  notes: string | null;
+  source_url: string | null;
+  source_author: string | null;
+  nutrition: string | null;
+  last_made_date: string | null;
+  steps: RecipeStep[];
+  ingredients: RecipeIngredient[];
 }
 
 export interface MealPlanSlot {
