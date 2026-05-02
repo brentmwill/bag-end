@@ -5,7 +5,7 @@ Named for the Baggins' home in the Shire — the family hearth, everything in on
 A web-based household command center for Brent, Danielle, and their baby. Displayed on a 32" portrait monitor (Raspberry Pi kiosk) in the kitchen. Also accessible as a PWA via Tailscale.
 
 ## Full Plan
-`C:\Users\eluse\.claude\plans\bag-end-plan.md`
+[`docs/plan.md`](./docs/plan.md) — phase scope, status, open questions.
 
 ## Stack
 - **Backend:** Python FastAPI, separate port from ai-tutoring-system
@@ -46,6 +46,15 @@ A web-based household command center for Brent, Danielle, and their baby. Displa
 - **Push from Windows:** `git push`
 - **Server pull:** `cd /home/eluse/projects/bag-end && git pull --rebase`
 - **Server deploy after pull:** `cd frontend && npm run build && cd .. && sudo systemctl restart bag-end-api`
+
+## Google OAuth
+- **Cloud project:** `traffic` (project number `295976520035`) — shared with DakBoard
+- **Consent screen:** Published / In production (as of 2026-05-01) — refresh tokens last indefinitely
+- **Scope:** `calendar.readonly` only
+- **Token files:** `C:\Users\eluse\Projects\bag-end\token.json` (Windows source), `/home/eluse/projects/bag-end/backend/token.json` (server)
+- **Refresh procedure:** `python scripts/get_google_token.py` on Windows, `scp` to server, restart `bag-end-api`
+- The helper falls back to extracting client_id/client_secret from existing token.json — no need to re-download OAuth client JSON for routine refreshes
+- Empty calendar with `invalid_grant` errors in logs = token revoked (manual revoke, password change). Don't reach for "testing-mode expiry" — consent screen is Production now.
 
 ## API Endpoints (aggregation layer)
 - `GET /api/glance` — full payload for all four display views, cached server-side
