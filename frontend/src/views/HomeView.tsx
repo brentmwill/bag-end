@@ -5,6 +5,7 @@ import styles from './HomeView.module.css';
 interface Props {
   data: GlanceData | null;
   onStartCooking?: (recipeId: string) => void;
+  onRefreshGlance?: () => Promise<void>;
 }
 
 function weatherEmoji(code: number): string {
@@ -59,10 +60,35 @@ function CommuteTileComponent({ tile }: { tile: CommuteTile | null }) {
   );
 }
 
-export default function HomeView({ data, onStartCooking }: Props) {
+function formatRelative(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+export default function HomeView({ data, onStartCooking, onRefreshGlance }: Props) {
   const [time, setTime] = useState(() =>
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   );
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefreshCommute = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await fetch('/api/commute/refresh', { method: 'POST' });
+      if (onRefreshGlance) await onRefreshGlance();
+    } catch {
+      // swallow — last-known tiles stay rendered
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -159,7 +185,32 @@ export default function HomeView({ data, onStartCooking }: Props) {
 
       {/* Commute */}
       <div className={styles.commuteCard}>
-        <div className={styles.cardLabel}>Commute</div>
+        <div className={styles.commuteHeader}>
+          <span className={styles.cardLabel}>Commute</span>
+          <span className={styles.commuteMeta}>
+            {(() => {
+              const stamps = commuteTiles
+                .filter((t): t is CommuteTile => !!t)
+                .map(t => new Date(t.updated_at).getTime());
+              if (stamps.length === 0) return null;
+              const oldest = Math.min(...stamps);
+              return (
+                <span className={styles.commuteUpdated}>
+                  Updated {formatRelative(new Date(oldest).toISOString())}
+                </span>
+              );
+            })()}
+            <button
+              className={styles.commuteRefreshBtn}
+              onClick={handleRefreshCommute}
+              disabled={refreshing}
+              aria-label="Refresh commute"
+              title="Refresh commute"
+            >
+              {refreshing ? '…' : '↻'}
+            </button>
+          </span>
+        </div>
         <div className={styles.commuteGrid}>
           {commuteTiles.map((tile, i) => (
             <CommuteTileComponent key={tile?.label ?? i} tile={tile} />

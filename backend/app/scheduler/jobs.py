@@ -10,13 +10,15 @@ _scheduler: AsyncIOScheduler | None = None
 
 
 async def _job_refresh_commute():
+    """Smart-tick: only fetches the relevant direction during rush windows
+    (Mon–Fri 6:30–8:15am outbound, 4–6pm inbound). No-op outside windows."""
     try:
-        from app.services.google_maps import fetch_commute_tiles
+        from app.services.google_maps import smart_refresh, get_tiles
         from app.services.glance_cache import get_cache, set_cache
-        tiles = await fetch_commute_tiles()
+        await smart_refresh()
         cache = get_cache()
         if cache and cache.get("home") is not None:
-            cache["home"]["commute_tiles"] = tiles
+            cache["home"]["commute_tiles"] = get_tiles()
             set_cache(cache)
     except Exception:
         logger.exception("refresh_commute job failed")
@@ -171,7 +173,7 @@ def start_scheduler():
 
     _scheduler.add_job(
         _job_refresh_commute,
-        trigger=IntervalTrigger(minutes=15),
+        trigger=IntervalTrigger(minutes=5),
         id="refresh_commute",
         replace_existing=True,
     )

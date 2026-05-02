@@ -30,6 +30,7 @@ export interface CommuteTile {
   label: string; // e.g. "Brent → Work"
   duration_min: number;
   distance_km: number;
+  updated_at: string; // ISO datetime, last successful fetch
 }
 
 export interface TrelloTask {

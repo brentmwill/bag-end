@@ -173,6 +173,54 @@
   padding: 1.25rem 1.5rem;
 }
 
+.commuteHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.commuteHeader .cardLabel {
+  margin-bottom: 0;
+}
+
+.commuteMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.commuteUpdated {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.commuteRefreshBtn {
+  background: var(--surface-2);
+  border: none;
+  color: var(--text-secondary);
+  border-radius: 50%;
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 1rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.commuteRefreshBtn:hover:not(:disabled) {
+  background: var(--accent-dim, var(--surface-2));
+  color: var(--text-primary);
+}
+
+.commuteRefreshBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .cardLabel {
   font-size: var(--font-size-xs);
   font-weight: 700;

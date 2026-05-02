@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     google_calendar_ids: str = ""
 
     google_maps_api_key: str = ""
+    home_address: str = ""
+    brent_work_address: str = ""
+    danielle_work_address: str = ""
 
     trello_api_key: str = ""
     trello_token: str = ""

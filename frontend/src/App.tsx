@@ -18,7 +18,7 @@ const appRootStyle: CSSProperties = {
 };
 
 export default function App() {
-  const { data, loading } = useGlanceData();
+  const { data, loading, refresh } = useGlanceData();
   const {
     currentView,
     interactMode,
@@ -42,6 +42,7 @@ export default function App() {
         data={data}
         loading={loading}
         onStartCooking={setCookingRecipeId}
+        onRefreshGlance={refresh}
       />
 
       <NavDots

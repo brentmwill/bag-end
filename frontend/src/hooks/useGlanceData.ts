@@ -7,6 +7,7 @@ interface UseGlanceDataResult {
   data: GlanceData | null;
   loading: boolean;
   error: string | null;
+  refresh: () => Promise<void>;
 }
 
 export function useGlanceData(): UseGlanceDataResult {
@@ -43,5 +44,5 @@ export function useGlanceData(): UseGlanceDataResult {
     };
   }, []);
 
-  return { data, loading, error };
+  return { data, loading, error, refresh: fetchData };
 }
