@@ -112,5 +112,5 @@ All items pushed to AnyList carry recipe source in the notes field:
 
 ## Open questions / decisions
 
-- Push branch convention for Bag End (`master` vs `master:main` Parma-style) — TBD
+- Dual GitHub branches (`master` and `main`) — server tracks `origin/main`, GitHub default is `origin/master`. Deploy currently requires pushing to both. Worth collapsing to a single-branch convention.
 - Where the kiosk Pi pulls from and how it auto-updates — not yet automated

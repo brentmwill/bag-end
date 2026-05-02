@@ -38,6 +38,17 @@ A web-based household command center for Brent, Danielle, and their baby. Displa
 - **venv:** `/home/eluse/projects/bag-end/backend/.venv` (note: different convention from Parma's sibling `ai-tutor-env`)
 - **Port:** 8001 (Parma is 8000)
 - **DB:** `bagend` user/db on local Postgres
+- **Kiosk URLs:** `http://100.104.206.14:8001` (Tailscale) or `http://192.168.1.201:8001` (LAN)
+- FastAPI serves the built React bundle from `frontend/dist` — must `npm run build` after frontend changes
+
+## Git workflow
+- Windows local branch: `master` | Server branch: `main` | GitHub default: `master`
+- **Deploy push (Windows):** `git push origin master:main` — server tracks `origin/main`
+- Also push `master` to keep GitHub default in sync: `git push origin master`
+- One-liner for both: `git push origin master master:main`
+- **Server pull:** `cd /home/eluse/projects/bag-end && git pull --rebase`
+- **Server deploy after pull:** `cd frontend && npm run build && cd .. && sudo systemctl restart bag-end-api`
+- TODO: collapse to a single branch convention (likely `main` everywhere, matching Parma's GitHub side) to remove the dual-push step
 
 ## API Endpoints (aggregation layer)
 - `GET /api/glance` — full payload for all four display views, cached server-side
