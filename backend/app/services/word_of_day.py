@@ -24,10 +24,20 @@ Pick a word that is:
 
 Return ONLY a JSON object with these exact keys:
 - word: the headword, lowercase unless it's a proper noun
-- pronunciation: phonetic respelling in Merriam-Webster style with stressed syllables in CAPS, wrapped in slashes — e.g. "/PET-ruh-kor/", "/SAR-uh-bin/", "/ee-fem-ER-uhl/". NOT IPA.
+- pronunciation: phonetic respelling in Merriam-Webster style with stressed syllables in CAPS, wrapped in slashes. NOT IPA.
 - definition: one clear sentence, plain English
 - etymology: 1–2 sentences on language of origin and literal meaning
 - example: one sentence using the word in a natural, modern context
+
+CRITICAL — pronunciation rules:
+1. Every consonant in the source word MUST appear in the respelling. Do not drop letters.
+2. Mentally read your respelling out loud and confirm it sounds like the source word before returning.
+3. Worked examples:
+   - "umami" → "/oo-MAH-mee/"   (NOT "/oo-AH-mee/" — that drops the 'm')
+   - "petrichor" → "/PET-ruh-kor/"
+   - "ephemeral" → "/ee-FEM-uh-ruhl/"
+   - "saraband" → "/SAR-uh-band/"
+   - "halcyon" → "/HAL-see-uhn/"
 
 No prose outside the JSON. No code fences."""
 
