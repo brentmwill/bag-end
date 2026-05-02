@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections import defaultdict
 from datetime import datetime, date, timedelta, timezone
 from sqlalchemy import select
@@ -11,7 +12,10 @@ from app.services import google_maps as maps_svc
 from app.services import trello as trello_svc
 from app.services import anylist as anylist_svc
 from app.services import sports as sports_svc
+from app.services import word_of_day as wotd_svc
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 _cache: dict = {}
 _refresh_lock = asyncio.Lock()
@@ -62,8 +66,16 @@ async def refresh_glance() -> dict:
         # TODO: fetch freezer inventory from DB
         freezer_items = []
 
-        # TODO: fetch or generate word of the day from WordOfDayCache
+        # Fetch today's Word of the Day; cold-start generate if missing
         word_of_day = None
+        try:
+            async with AsyncSessionLocal() as db:
+                row = await wotd_svc.get_today_wotd(db)
+            if row is None:
+                row = await wotd_svc.ensure_today_wotd()
+            word_of_day = wotd_svc.serialize(row)
+        except Exception:
+            logger.exception("WOTD fetch/generate failed; rendering blank")
 
         # TODO: fetch digest snippet from DigestCache for today
         digest_snippet = None

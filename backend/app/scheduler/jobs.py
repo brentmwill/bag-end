@@ -37,6 +37,14 @@ async def _job_generate_digest():
         logger.exception("generate_digest job failed")
 
 
+async def _job_generate_wotd():
+    try:
+        from app.services.word_of_day import ensure_today_wotd
+        await ensure_today_wotd()
+    except Exception:
+        logger.exception("generate_wotd job failed")
+
+
 async def _job_midnight_reset():
     try:
         from app.services.glance_cache import set_cache
@@ -201,6 +209,12 @@ def start_scheduler():
         _job_weekly_summary,
         trigger=CronTrigger(day_of_week="sun", hour=19, minute=0),
         id="weekly_summary",
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        _job_generate_wotd,
+        trigger=CronTrigger(hour=5, minute=30, timezone="America/New_York"),
+        id="generate_wotd",
         replace_existing=True,
     )
 

@@ -87,6 +87,19 @@ In rough priority order:
 - FitBit API
 - Monarch API
 
+## Chatbot expansion (Telegram-first)
+
+Brent uses Telegram daily and is happy treating it as the primary chatbot surface before
+any in-app chat UI. New bots/features sit alongside Chef Sue:
+
+- **Chief of Staff bot** — general household assistant; scope TBD (scheduling help,
+  coordination prompts, daily check-ins?)
+- **Backlog idea capture via Telegram** — quick `/idea <text>` or freeform DM that lands
+  in a project backlog table, so Brent can dump ideas without needing Claude access
+- **Calendar event change notifications** — push DM when a new event is added to the
+  shared Google Calendar (and likely on cancellations/edits)
+- (further bot ideas to be added as they come up)
+
 ## Meal planning defaults
 
 - Pregnancy-safe (expires 2026-10-15 — stored as configurable date, drops automatically)
