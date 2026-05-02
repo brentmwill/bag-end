@@ -15,6 +15,10 @@ logger = logging.getLogger(__name__)
 
 DEDUPE_WINDOW = 365
 
+# Words used as worked examples in the system prompt — exclude from candidate
+# pool defensively in case the model leans on them as suggestions.
+SEED_EXCLUDED_WORDS = ["umami", "petrichor", "ephemeral", "saraband", "halcyon"]
+
 SYSTEM_PROMPT = """You are the curator of a Word of the Day for a household kitchen dashboard.
 
 Pick a word that is:
@@ -32,7 +36,7 @@ Return ONLY a JSON object with these exact keys:
 CRITICAL — pronunciation rules:
 1. Every consonant in the source word MUST appear in the respelling. Do not drop letters.
 2. Mentally read your respelling out loud and confirm it sounds like the source word before returning.
-3. Worked examples:
+3. Worked examples (FORMAT REFERENCE ONLY — do NOT pick these as today's word):
    - "umami" → "/oo-MAH-mee/"   (NOT "/oo-AH-mee/" — that drops the 'm')
    - "petrichor" → "/PET-ruh-kor/"
    - "ephemeral" → "/ee-FEM-uh-ruhl/"
@@ -116,7 +120,15 @@ async def ensure_today_wotd(force_regenerate: bool = False) -> WordOfDayCache:
             return existing
 
         recent_words = await _fetch_recent_words(db)
-        data = await generate_word_of_day(recent_words)
+        # Merge with seed exclusions, preserving order, deduped
+        seen = set()
+        exclusions: list[str] = []
+        for w in recent_words + SEED_EXCLUDED_WORDS:
+            lw = w.lower()
+            if lw not in seen:
+                seen.add(lw)
+                exclusions.append(w)
+        data = await generate_word_of_day(exclusions)
 
         row = WordOfDayCache(
             date=date.today(),
