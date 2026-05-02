@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -10,37 +11,34 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-DM_URL = "https://maps.googleapis.com/maps/api/distancematrix/json"
+DIRECTIONS_URL = "https://maps.googleapis.com/maps/api/directions/json"
 
-TILE_LABELS = {
-    0: "Brent → Work",
-    1: "Brent ← Work",
-    2: "Danielle → Work",
-    3: "Danielle ← Work",
+# Per-tile config: (label, origin_setting, destination_setting, avoid_tolls)
+# Order matters — frontend reads commute_tiles[0..3] by index.
+TILE_CONFIG: dict[int, dict[str, Any]] = {
+    0: {"label": "Brent → Work",    "origin": "home_address",          "destination": "brent_work_address",    "avoid_tolls": True},
+    1: {"label": "Brent ← Work",    "origin": "brent_work_address",    "destination": "home_address",          "avoid_tolls": True},
+    2: {"label": "Danielle → Work", "origin": "home_address",          "destination": "danielle_work_address", "avoid_tolls": False},
+    3: {"label": "Danielle ← Work", "origin": "danielle_work_address", "destination": "home_address",          "avoid_tolls": False},
 }
 
+OUTBOUND_TILES = (0, 2)  # home → work
+INBOUND_TILES = (1, 3)   # work → home
+
 # In-memory cache of last good tile data, keyed by tile index.
-# Survives across glance refreshes; lost on process restart.
 _tiles: dict[int, dict[str, Any]] = {}
+
+# Direction words bolded in html_instructions that aren't road names.
+_DIRECTION_WORDS = {
+    "left", "right", "north", "south", "east", "west",
+    "northwest", "northeast", "southwest", "southeast",
+    "slight left", "slight right", "sharp left", "sharp right",
+    "u-turn", "northbound", "southbound", "eastbound", "westbound",
+}
 
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
-
-
-def _build_tile(label: str, element: dict | None) -> dict[str, Any] | None:
-    if not element or element.get("status") != "OK":
-        return None
-    duration = element.get("duration_in_traffic") or element.get("duration")
-    distance = element.get("distance")
-    if not duration or not distance:
-        return None
-    return {
-        "label": label,
-        "duration_min": round(duration["value"] / 60),
-        "distance_km": round(distance["value"] / 1000, 2),
-        "updated_at": _now_iso(),
-    }
 
 
 def _addresses_configured() -> bool:
@@ -52,68 +50,111 @@ def _addresses_configured() -> bool:
     )
 
 
-async def _call_dm(origins: list[str], destinations: list[str]) -> dict | None:
-    params = {
-        "origins": "|".join(origins),
-        "destinations": "|".join(destinations),
+def _extract_route_summary(steps: list[dict], max_roads: int = 4, min_meters: int = 480) -> list[str]:
+    """Build an ordered list of the longest meaningful road segments along the route.
+
+    Returns roads sorted by route order (not by distance). Filters out direction
+    words, exit numbers (purely numeric/dash), and segments shorter than min_meters."""
+    distances: dict[str, int] = {}
+    first_seen: dict[str, int] = {}
+
+    for i, step in enumerate(steps):
+        instr = step.get("html_instructions", "")
+        if not instr:
+            continue
+        # Drop the trailing destination div if present
+        instr_clean = re.sub(r"<div[^>]*>.*?</div>", "", instr)
+        bolded = re.findall(r"<b>([^<]+)</b>", instr_clean)
+        if not bolded:
+            continue
+        # Take the FIRST bolded road-like token. Skip direction words and pure
+        # exit numbers (digits + letters + dashes, no spaces).
+        road = None
+        for b in bolded:
+            stripped = b.strip()
+            if not stripped:
+                continue
+            if stripped.lower() in _DIRECTION_WORDS:
+                continue
+            # Skip exit numbers like "327-328B-A" (no internal spaces, contains digit + dash)
+            if re.fullmatch(r"[0-9A-Z\-]+", stripped) and any(c.isdigit() for c in stripped):
+                continue
+            road = stripped
+            break
+        if not road:
+            continue
+        dist_m = step.get("distance", {}).get("value", 0)
+        if road not in first_seen:
+            first_seen[road] = i
+        distances[road] = distances.get(road, 0) + dist_m
+
+    meaningful = [(r, d) for r, d in distances.items() if d >= min_meters]
+    meaningful.sort(key=lambda x: x[1], reverse=True)
+    top = meaningful[:max_roads]
+    top.sort(key=lambda x: first_seen[x[0]])
+    return [r for r, _ in top]
+
+
+async def _fetch_tile(idx: int) -> dict[str, Any] | None:
+    cfg = TILE_CONFIG[idx]
+    origin = getattr(settings, cfg["origin"])
+    destination = getattr(settings, cfg["destination"])
+    if not (origin and destination and settings.google_maps_api_key):
+        return None
+    params: dict[str, Any] = {
+        "origin": origin,
+        "destination": destination,
         "departure_time": "now",
         "key": settings.google_maps_api_key,
     }
+    if cfg["avoid_tolls"]:
+        params["avoid"] = "tolls"
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(DM_URL, params=params)
+            resp = await client.get(DIRECTIONS_URL, params=params)
             resp.raise_for_status()
             data = resp.json()
     except Exception:
-        logger.exception("Distance Matrix request failed")
+        logger.exception("Directions API request failed for tile %d", idx)
         return None
-    if data.get("status") != "OK":
-        logger.warning("Distance Matrix non-OK status: %s", data.get("status"))
+    if data.get("status") != "OK" or not data.get("routes"):
+        logger.warning("Directions non-OK for tile %d: %s", idx, data.get("status"))
         return None
-    return data
+    route = data["routes"][0]
+    leg = route["legs"][0]
+    duration = leg.get("duration_in_traffic") or leg.get("duration")
+    distance = leg.get("distance")
+    if not duration or not distance:
+        return None
+    return {
+        "label": cfg["label"],
+        "duration_min": round(duration["value"] / 60),
+        "distance_km": round(distance["value"] / 1000, 2),
+        "route_summary": _extract_route_summary(leg.get("steps", [])),
+        "updated_at": _now_iso(),
+    }
+
+
+async def _refresh_indices(indices: tuple[int, ...]) -> None:
+    if not _addresses_configured():
+        return
+    results = await asyncio.gather(*(_fetch_tile(i) for i in indices))
+    for idx, tile in zip(indices, results):
+        if tile:
+            _tiles[idx] = tile
 
 
 async def refresh_outbound() -> None:
-    """Refresh tiles 0 (Brent→Work) and 2 (Danielle→Work) — single batched call."""
-    if not _addresses_configured():
-        return
-    data = await _call_dm(
-        origins=[settings.home_address],
-        destinations=[settings.brent_work_address, settings.danielle_work_address],
-    )
-    if not data:
-        return
-    elements = data.get("rows", [{}])[0].get("elements", [])
-    if len(elements) >= 2:
-        if t0 := _build_tile(TILE_LABELS[0], elements[0]):
-            _tiles[0] = t0
-        if t2 := _build_tile(TILE_LABELS[2], elements[1]):
-            _tiles[2] = t2
+    await _refresh_indices(OUTBOUND_TILES)
 
 
 async def refresh_inbound() -> None:
-    """Refresh tiles 1 (Brent←Work) and 3 (Danielle←Work) — single batched call."""
-    if not _addresses_configured():
-        return
-    data = await _call_dm(
-        origins=[settings.brent_work_address, settings.danielle_work_address],
-        destinations=[settings.home_address],
-    )
-    if not data:
-        return
-    rows = data.get("rows", [])
-    if len(rows) >= 2:
-        b_el = rows[0].get("elements", [None])[0]
-        d_el = rows[1].get("elements", [None])[0]
-        if t1 := _build_tile(TILE_LABELS[1], b_el):
-            _tiles[1] = t1
-        if t3 := _build_tile(TILE_LABELS[3], d_el):
-            _tiles[3] = t3
+    await _refresh_indices(INBOUND_TILES)
 
 
 async def refresh_all() -> None:
     """Refresh all 4 tiles. Used for cold-start and manual button press."""
-    await asyncio.gather(refresh_outbound(), refresh_inbound())
+    await _refresh_indices((0, 1, 2, 3))
 
 
 def _is_morning_rush(now_et: datetime) -> bool:
@@ -130,8 +171,7 @@ def _is_evening_rush(now_et: datetime) -> bool:
 
 
 async def smart_refresh() -> None:
-    """Called by the 5-min scheduler tick. Only refreshes the relevant
-    direction during the corresponding rush window. No-op outside rush."""
+    """5-min scheduler tick: refresh only the active direction during rush windows."""
     if not _addresses_configured():
         return
     now_et = datetime.now(ZoneInfo("America/New_York"))
@@ -142,12 +182,11 @@ async def smart_refresh() -> None:
 
 
 def get_tiles() -> list[dict[str, Any] | None]:
-    """Return the 4 tiles in fixed order. Missing tiles are None."""
     return [_tiles.get(i) for i in range(4)]
 
 
 async def fetch_commute_tiles() -> list[dict[str, Any] | None]:
-    """Compatibility wrapper for glance_cache. Triggers cold-start fetch
+    """Compatibility wrapper for glance_cache. Triggers a cold-start fetch
     if no tiles have been populated yet (post-restart)."""
     if not any(_tiles.values()) and _addresses_configured():
         await refresh_all()

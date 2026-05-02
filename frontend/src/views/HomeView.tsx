@@ -52,6 +52,11 @@ function CommuteTileComponent({ tile }: { tile: CommuteTile | null }) {
             <span className={styles.commuteTileDurationUnit}> min</span>
           </div>
           <span className={styles.commuteTileDistance}>{tile.distance_km.toFixed(1)} km</span>
+          {tile.route_summary && tile.route_summary.length > 0 && (
+            <span className={styles.commuteTileRoute}>
+              {tile.route_summary.join(' → ')}
+            </span>
+          )}
         </>
       ) : (
         <span className={styles.commuteTileDuration}>--</span>
