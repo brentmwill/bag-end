@@ -49,6 +49,18 @@ async def _fetch_recent_words(db: AsyncSession, limit: int = DEDUPE_WINDOW) -> l
     return [w for (w,) in result.all()]
 
 
+def _strip_code_fence(s: str) -> str:
+    s = s.strip()
+    if s.startswith("```"):
+        # remove leading fence + optional language tag
+        first_nl = s.find("\n")
+        if first_nl != -1:
+            s = s[first_nl + 1:]
+        if s.endswith("```"):
+            s = s[: -3]
+    return s.strip()
+
+
 async def generate_word_of_day(recent_words: list[str]) -> dict[str, Any]:
     """Call Claude haiku to generate one Word of the Day. Returns dict with
     keys: word, pronunciation, definition, etymology, example."""
@@ -59,8 +71,13 @@ async def generate_word_of_day(recent_words: list[str]) -> dict[str, Any]:
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": _build_user_prompt(recent_words)}],
     )
-    raw = message.content[0].text.strip()
-    parsed = json.loads(raw)
+    raw = message.content[0].text if message.content else ""
+    cleaned = _strip_code_fence(raw)
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        logger.error("WOTD JSON parse failed. Raw response: %r", raw)
+        raise ValueError(f"WOTD JSON parse failed: {e}") from e
     for key in ("word", "definition"):
         if not parsed.get(key):
             raise ValueError(f"WOTD response missing required field '{key}': {raw!r}")
