@@ -50,25 +50,24 @@ def _addresses_configured() -> bool:
     )
 
 
-def _extract_route_summary(steps: list[dict], max_roads: int = 4, min_meters: int = 480) -> list[str]:
-    """Build an ordered list of the longest meaningful road segments along the route.
+def _extract_primary_road(steps: list[dict]) -> str | None:
+    """Return the road name with the most cumulative distance along the route.
 
-    Returns roads sorted by route order (not by distance). Filters out direction
-    words, exit numbers (purely numeric/dash), and segments shorter than min_meters."""
+    Filters out direction words and pure exit numbers. Returns None if no
+    valid road is found."""
     distances: dict[str, int] = {}
-    first_seen: dict[str, int] = {}
 
-    for i, step in enumerate(steps):
+    for step in steps:
         instr = step.get("html_instructions", "")
         if not instr:
             continue
-        # Drop the trailing destination div if present
+        # Skip exit/ramp transition steps — the merge step that follows carries
+        # the actual road name we want.
+        if re.search(r"\b(take exit|take the ramp|take the .* exit)\b", instr, re.I):
+            continue
+        # Drop trailing destination div
         instr_clean = re.sub(r"<div[^>]*>.*?</div>", "", instr)
         bolded = re.findall(r"<b>([^<]+)</b>", instr_clean)
-        if not bolded:
-            continue
-        # Take the FIRST bolded road-like token. Skip direction words and pure
-        # exit numbers (digits + letters + dashes, no spaces).
         road = None
         for b in bolded:
             stripped = b.strip()
@@ -76,23 +75,18 @@ def _extract_route_summary(steps: list[dict], max_roads: int = 4, min_meters: in
                 continue
             if stripped.lower() in _DIRECTION_WORDS:
                 continue
-            # Skip exit numbers like "327-328B-A" (no internal spaces, contains digit + dash)
+            # Skip exit-number-style tokens like "327-328B-A"
             if re.fullmatch(r"[0-9A-Z\-]+", stripped) and any(c.isdigit() for c in stripped):
                 continue
             road = stripped
             break
         if not road:
             continue
-        dist_m = step.get("distance", {}).get("value", 0)
-        if road not in first_seen:
-            first_seen[road] = i
-        distances[road] = distances.get(road, 0) + dist_m
+        distances[road] = distances.get(road, 0) + step.get("distance", {}).get("value", 0)
 
-    meaningful = [(r, d) for r, d in distances.items() if d >= min_meters]
-    meaningful.sort(key=lambda x: x[1], reverse=True)
-    top = meaningful[:max_roads]
-    top.sort(key=lambda x: first_seen[x[0]])
-    return [r for r, _ in top]
+    if not distances:
+        return None
+    return max(distances.items(), key=lambda kv: kv[1])[0]
 
 
 async def _fetch_tile(idx: int) -> dict[str, Any] | None:
@@ -130,7 +124,7 @@ async def _fetch_tile(idx: int) -> dict[str, Any] | None:
         "label": cfg["label"],
         "duration_min": round(duration["value"] / 60),
         "distance_km": round(distance["value"] / 1000, 2),
-        "route_summary": _extract_route_summary(leg.get("steps", [])),
+        "primary_road": _extract_primary_road(leg.get("steps", [])),
         "updated_at": _now_iso(),
     }
 

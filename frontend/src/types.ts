@@ -30,7 +30,7 @@ export interface CommuteTile {
   label: string; // e.g. "Brent → Work"
   duration_min: number;
   distance_km: number;
-  route_summary: string[]; // ordered list of road names along the route
+  primary_road: string | null; // longest single road segment, e.g. "US-202 S"
   updated_at: string; // ISO datetime, last successful fetch
 }
 

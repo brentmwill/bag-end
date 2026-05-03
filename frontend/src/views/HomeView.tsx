@@ -29,14 +29,18 @@ function formatForecastDate(dateStr: string): string {
   return d.toLocaleDateString([], { weekday: 'short' });
 }
 
+function localDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function isTodayEvent(event: CalendarEvent): boolean {
-  const today = new Date();
-  const eventDate = new Date(event.start);
-  return (
-    eventDate.getFullYear() === today.getFullYear() &&
-    eventDate.getMonth() === today.getMonth() &&
-    eventDate.getDate() === today.getDate()
-  );
+  const todayKey = localDateKey(new Date());
+  // All-day events have start as 'YYYY-MM-DD'. Don't pass through new Date(),
+  // which interprets bare dates as UTC and can shift the day for Eastern users.
+  if (event.all_day) {
+    return event.start.startsWith(todayKey);
+  }
+  return localDateKey(new Date(event.start)) === todayKey;
 }
 
 function CommuteTileComponent({ tile }: { tile: CommuteTile | null }) {
@@ -52,10 +56,8 @@ function CommuteTileComponent({ tile }: { tile: CommuteTile | null }) {
             <span className={styles.commuteTileDurationUnit}> min</span>
           </div>
           <span className={styles.commuteTileDistance}>{tile.distance_km.toFixed(1)} km</span>
-          {tile.route_summary && tile.route_summary.length > 0 && (
-            <span className={styles.commuteTileRoute}>
-              {tile.route_summary.join(' → ')}
-            </span>
+          {tile.primary_road && (
+            <span className={styles.commuteTileRoute}>via {tile.primary_road}</span>
           )}
         </>
       ) : (
