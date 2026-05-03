@@ -24,9 +24,6 @@ function RecipeCard({ recipe, isDragging, onCategoryEdit }: RecipeCardProps) {
   const stars = recipe.rating ? '★'.repeat(recipe.rating) : null;
   return (
     <div className={`${styles.recipeCard} ${isDragging ? styles.recipeCardDragging : ''}`}>
-      {recipe.photo_path && (
-        <img src={recipe.photo_path} alt={recipe.name} className={styles.recipePhoto} />
-      )}
       <div className={styles.recipeCardBody}>
         <div className={styles.recipeNameRow}>
           <div className={styles.recipeName}>{recipe.name}</div>

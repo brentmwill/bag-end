@@ -201,13 +201,6 @@
   cursor: grabbing;
 }
 
-.recipePhoto {
-  width: 100%;
-  height: 80px;
-  object-fit: cover;
-  display: block;
-}
-
 .recipeCardBody {
   padding: 0.6rem 0.75rem;
 }

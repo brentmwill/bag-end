@@ -179,10 +179,21 @@ async def generate_recipe(data: GenerateRequest, db: AsyncSession = Depends(get_
         messages=[{"role": "user", "content": prompt}],
     )
 
+    raw = message.content[0].text if message.content else ""
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        nl = cleaned.find("\n")
+        if nl != -1:
+            cleaned = cleaned[nl + 1:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
     try:
-        recipe_data = json.loads(message.content[0].text)
-    except (json.JSONDecodeError, IndexError, KeyError):
-        raise HTTPException(status_code=502, detail="Failed to parse generated recipe")
+        recipe_data = json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        import logging
+        logging.getLogger(__name__).error("Recipe generation JSON parse failed. Raw: %r", raw)
+        raise HTTPException(status_code=502, detail=f"Failed to parse generated recipe: {e}")
 
     if data.save:
         recipe = Recipe(
