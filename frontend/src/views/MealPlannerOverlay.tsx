@@ -8,7 +8,7 @@ import styles from './MealPlannerOverlay.module.css';
 
 const CATEGORY_GROUPS = [
   { label: 'Diet', cats: ['Mediterranean', 'Green Mediterranean', 'Anti-Inflammatory', 'High Protein'] },
-  { label: 'Type', cats: ['Breakfast', 'Dinner', 'Snack', 'Pasta', 'Soups and Stews'] },
+  { label: 'Type', cats: ['Breakfast', 'Dinner', 'Snack', 'Pasta', 'Soups and Stews', 'Casserole'] },
   { label: 'Method', cats: ['Slow Cooker Recipes'] },
 ];
 
@@ -192,7 +192,7 @@ interface CategoryEditModalProps {
 
 const ALL_EDITABLE_CATEGORIES = [
   'Mediterranean', 'Green Mediterranean', 'Anti-Inflammatory', 'High Protein',
-  'Breakfast', 'Dinner', 'Snack', 'Pasta', 'Soups and Stews',
+  'Breakfast', 'Dinner', 'Snack', 'Pasta', 'Soups and Stews', 'Casserole',
   'Slow Cooker Recipes', 'Finger Food',
 ];
 
@@ -250,6 +250,7 @@ export default function MealPlannerOverlay({ onClose }: Props) {
     pushToAnyList,
     toggleCategory,
     toggleBoolean,
+    setSearch,
   } = useMealPlanner();
 
   const [activeRecipe, setActiveRecipe] = useState<Recipe | null>(null);
@@ -295,6 +296,27 @@ export default function MealPlannerOverlay({ onClose }: Props) {
           </button>
           <button className={styles.closeBtn} onClick={onClose}>✕</button>
         </div>
+      </div>
+
+      {/* Search */}
+      <div className={styles.searchRow}>
+        <input
+          className={styles.searchInput}
+          type="search"
+          placeholder="Search recipes…"
+          value={filters.search}
+          onChange={e => setSearch(e.target.value)}
+          autoComplete="off"
+        />
+        {filters.search && (
+          <button
+            className={styles.searchClear}
+            onClick={() => setSearch('')}
+            aria-label="Clear search"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {/* Filters */}

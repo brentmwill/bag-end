@@ -17,6 +17,7 @@ export interface Filters {
   baby_friendly: boolean;
   freezable: boolean;
   finger_food: boolean;
+  search: string;
 }
 
 function getSundayOfWeek(d: Date): Date {
@@ -59,25 +60,31 @@ export function useMealPlanner() {
     baby_friendly: false,
     freezable: false,
     finger_food: false,
+    search: '',
   });
   const [loadingRecipes, setLoadingRecipes] = useState(false);
   const [pushStatus, setPushStatus] = useState<'idle' | 'pushing' | 'done' | 'error'>('idle');
 
-  // Fetch recipes when filters change
+  // Fetch recipes when filters change. Debounce search-only changes so we don't
+  // hammer the API on every keystroke.
   useEffect(() => {
-    setLoadingRecipes(true);
     const params = new URLSearchParams();
     filters.categories.forEach(c => params.append('category', c));
     if (filters.pregnancy_safe) params.set('pregnancy_safe', 'true');
     if (filters.baby_friendly) params.set('baby_friendly', 'true');
     if (filters.freezable) params.set('freezable', 'true');
     if (filters.finger_food) params.append('category', 'Finger Food');
+    if (filters.search.trim()) params.set('search', filters.search.trim());
 
-    fetch(`/api/recipes?${params}`)
-      .then(r => r.json())
-      .then(setRecipes)
-      .catch(console.error)
-      .finally(() => setLoadingRecipes(false));
+    setLoadingRecipes(true);
+    const timer = setTimeout(() => {
+      fetch(`/api/recipes?${params}`)
+        .then(r => r.json())
+        .then(setRecipes)
+        .catch(console.error)
+        .finally(() => setLoadingRecipes(false));
+    }, 200);
+    return () => clearTimeout(timer);
   }, [filters]);
 
   // Fetch current week slots
@@ -177,6 +184,7 @@ export function useMealPlanner() {
     if (filters.baby_friendly) params.set('baby_friendly', 'true');
     if (filters.freezable) params.set('freezable', 'true');
     if (filters.finger_food) params.append('category', 'Finger Food');
+    if (filters.search.trim()) params.set('search', filters.search.trim());
     const res = await fetch(`/api/recipes?${params}`);
     setRecipes(await res.json());
   }, [filters]);
@@ -207,8 +215,12 @@ export function useMealPlanner() {
     }));
   }, []);
 
-  const toggleBoolean = useCallback((key: keyof Omit<Filters, 'categories'>) => {
+  const toggleBoolean = useCallback((key: 'pregnancy_safe' | 'baby_friendly' | 'freezable' | 'finger_food') => {
     setFilters(f => ({ ...f, [key]: !f[key] }));
+  }, []);
+
+  const setSearch = useCallback((q: string) => {
+    setFilters(f => ({ ...f, search: q }));
   }, []);
 
   return {
@@ -226,5 +238,6 @@ export function useMealPlanner() {
     pushToAnyList,
     toggleCategory,
     toggleBoolean,
+    setSearch,
   };
 }
