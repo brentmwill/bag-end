@@ -34,7 +34,7 @@ export default function ViewContainer({ currentView, data, loading, onStartCooki
   return (
     <div style={containerStyle}>
       {currentView === 'home' && <HomeView data={data} onStartCooking={onStartCooking} onRefreshGlance={onRefreshGlance} />}
-      {currentView === 'planning' && <PlanningView data={data} />}
+      {currentView === 'planning' && <PlanningView data={data} onStartCooking={onStartCooking} />}
       {currentView === 'calendar' && <CalendarView />}
       {currentView === 'household' && <HouseholdView data={data} />}
       {currentView === 'ambient' && <AmbientView data={data} />}

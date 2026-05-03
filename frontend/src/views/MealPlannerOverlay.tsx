@@ -14,6 +14,7 @@ import {
 import { useMealPlanner, WeekDay } from '../hooks/useMealPlanner';
 import { Recipe } from '../types';
 import GenerateRecipeModal from '../components/GenerateRecipeModal';
+import RecipeDetailModal from '../components/RecipeDetailModal';
 import styles from './MealPlannerOverlay.module.css';
 
 const CATEGORY_GROUPS = [
@@ -28,24 +29,38 @@ interface RecipeCardProps {
   recipe: Recipe;
   isDragging?: boolean;
   onCategoryEdit?: (recipe: Recipe) => void;
+  onViewDetails?: (recipe: Recipe) => void;
 }
 
-function RecipeCard({ recipe, isDragging, onCategoryEdit }: RecipeCardProps) {
+function RecipeCard({ recipe, isDragging, onCategoryEdit, onViewDetails }: RecipeCardProps) {
   const stars = recipe.rating ? '★'.repeat(recipe.rating) : null;
   return (
     <div className={`${styles.recipeCard} ${isDragging ? styles.recipeCardDragging : ''}`}>
       <div className={styles.recipeCardBody}>
         <div className={styles.recipeNameRow}>
           <div className={styles.recipeName}>{recipe.name}</div>
-          {onCategoryEdit && (
-            <button
-              className={styles.editTagsBtn}
-              onClick={e => { e.stopPropagation(); onCategoryEdit(recipe); }}
-              title="Edit tags"
-            >
-              ✎
-            </button>
-          )}
+          <div className={styles.recipeCardActions}>
+            {onViewDetails && (
+              <button
+                className={styles.cardIconBtn}
+                onPointerDown={e => e.stopPropagation()}
+                onClick={e => { e.stopPropagation(); onViewDetails(recipe); }}
+                title="View recipe"
+              >
+                ⓘ
+              </button>
+            )}
+            {onCategoryEdit && (
+              <button
+                className={styles.cardIconBtn}
+                onPointerDown={e => e.stopPropagation()}
+                onClick={e => { e.stopPropagation(); onCategoryEdit(recipe); }}
+                title="Edit tags"
+              >
+                ✎
+              </button>
+            )}
+          </div>
         </div>
         <div className={styles.recipeMeta}>
           {recipe.cook_time && <span>{recipe.cook_time}</span>}
@@ -63,11 +78,24 @@ function RecipeCard({ recipe, isDragging, onCategoryEdit }: RecipeCardProps) {
   );
 }
 
-function DraggableRecipeCard({ recipe, onCategoryEdit }: { recipe: Recipe; onCategoryEdit: (r: Recipe) => void }) {
+function DraggableRecipeCard({
+  recipe,
+  onCategoryEdit,
+  onViewDetails,
+}: {
+  recipe: Recipe;
+  onCategoryEdit: (r: Recipe) => void;
+  onViewDetails: (r: Recipe) => void;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: recipe.id, data: { recipe } });
   return (
     <div ref={setNodeRef} {...listeners} {...attributes} style={{ opacity: isDragging ? 0.4 : 1 }}>
-      <RecipeCard recipe={recipe} isDragging={isDragging} onCategoryEdit={onCategoryEdit} />
+      <RecipeCard
+        recipe={recipe}
+        isDragging={isDragging}
+        onCategoryEdit={onCategoryEdit}
+        onViewDetails={onViewDetails}
+      />
     </div>
   );
 }
@@ -240,9 +268,10 @@ function CategoryEditModal({ recipe, onSave, onClose }: CategoryEditModalProps) 
 
 interface Props {
   onClose: () => void;
+  onStartCooking?: (recipeId: string) => void;
 }
 
-export default function MealPlannerOverlay({ onClose }: Props) {
+export default function MealPlannerOverlay({ onClose, onStartCooking }: Props) {
   const {
     recipes,
     weekDays,
@@ -263,6 +292,7 @@ export default function MealPlannerOverlay({ onClose }: Props) {
   const [activeRecipe, setActiveRecipe] = useState<Recipe | null>(null);
   const [showGenerate, setShowGenerate] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [viewingRecipe, setViewingRecipe] = useState<Recipe | null>(null);
 
   // Default dnd-kit sensors don't recognize touch on mobile. Add explicit
   // PointerSensor for mouse and TouchSensor with a press-hold delay so a
@@ -394,6 +424,7 @@ export default function MealPlannerOverlay({ onClose }: Props) {
                     key={r.id}
                     recipe={r}
                     onCategoryEdit={setEditingRecipe}
+                    onViewDetails={setViewingRecipe}
                   />
                 ))}
               </div>
@@ -433,6 +464,14 @@ export default function MealPlannerOverlay({ onClose }: Props) {
           recipe={editingRecipe}
           onSave={cats => updateRecipeCategories(editingRecipe.id, cats)}
           onClose={() => setEditingRecipe(null)}
+        />
+      )}
+
+      {viewingRecipe && (
+        <RecipeDetailModal
+          recipeId={viewingRecipe.id}
+          onClose={() => setViewingRecipe(null)}
+          onStartCooking={onStartCooking}
         />
       )}
     </div>

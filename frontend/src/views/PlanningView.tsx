@@ -5,6 +5,7 @@ import styles from './PlanningView.module.css';
 
 interface Props {
   data: GlanceData | null;
+  onStartCooking?: (recipeId: string) => void;
 }
 
 function formatDayShort(dateStr: string): string {
@@ -70,7 +71,7 @@ function groupEventsByDay(events: CalendarEvent[]): DayGroup[] {
     }));
 }
 
-export default function PlanningView({ data }: Props) {
+export default function PlanningView({ data, onStartCooking }: Props) {
   const [time, setTime] = useState(() =>
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   );
@@ -99,7 +100,12 @@ export default function PlanningView({ data }: Props) {
         <span className={styles.clock}>{time}</span>
       </div>
 
-      {plannerOpen && <MealPlannerOverlay onClose={() => setPlannerOpen(false)} />}
+      {plannerOpen && (
+        <MealPlannerOverlay
+          onClose={() => setPlannerOpen(false)}
+          onStartCooking={onStartCooking}
+        />
+      )}
 
       {/* Week Meal Plan */}
       <div className={styles.sectionCard}>

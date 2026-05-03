@@ -328,21 +328,30 @@
   flex: 1;
 }
 
-.editTagsBtn {
+.recipeCardActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.cardIconBtn {
   background: none;
   border: none;
   color: var(--text-muted);
-  font-size: var(--font-size-xs);
+  font-size: 0.95rem;
   cursor: pointer;
-  padding: 0;
+  padding: 0.1rem 0.25rem;
   line-height: 1;
-  flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.15s;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+  /* Always visible on touch devices since hover doesn't apply */
+  opacity: 1;
 }
 
-.recipeCard:hover .editTagsBtn {
-  opacity: 1;
+.cardIconBtn:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
 }
 
 /* Day slot wrapper (dinner + baby slots) */
