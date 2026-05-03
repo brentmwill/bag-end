@@ -1,6 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { DndContext, DragEndEvent, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  TouchSensor,
+} from '@dnd-kit/core';
 import { useMealPlanner, WeekDay } from '../hooks/useMealPlanner';
 import { Recipe } from '../types';
 import GenerateRecipeModal from '../components/GenerateRecipeModal';
@@ -254,6 +264,14 @@ export default function MealPlannerOverlay({ onClose }: Props) {
   const [showGenerate, setShowGenerate] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
 
+  // Default dnd-kit sensors don't recognize touch on mobile. Add explicit
+  // PointerSensor for mouse and TouchSensor with a press-hold delay so a
+  // touch-and-drag is distinguishable from a scroll.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
+
   const handleDragStart = (event: any) => {
     setActiveRecipe(event.active.data.current?.recipe ?? null);
   };
@@ -361,7 +379,7 @@ export default function MealPlannerOverlay({ onClose }: Props) {
         </div>
       </div>
 
-      <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className={styles.body}>
           {/* Recipe list */}
           <div className={styles.recipePanel}>
