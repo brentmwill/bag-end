@@ -34,7 +34,11 @@ async def _job_refresh_glance():
 
 async def _job_generate_digest():
     try:
-        logger.info("TODO: generate daily digest")
+        from app.services.digest import ensure_today_digest, send_digest_dm
+        row = await ensure_today_digest(force_regenerate=True)
+        snippet = (row.content or {}).get("snippet")
+        if snippet:
+            await send_digest_dm(snippet)
     except Exception:
         logger.exception("generate_digest job failed")
 
@@ -185,7 +189,7 @@ def start_scheduler():
     )
     _scheduler.add_job(
         _job_generate_digest,
-        trigger=CronTrigger(hour=6, minute=0),
+        trigger=CronTrigger(hour=6, minute=0, timezone="America/New_York"),
         id="generate_digest",
         replace_existing=True,
     )

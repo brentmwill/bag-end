@@ -31,6 +31,7 @@ class Settings(BaseSettings):
 
     telegram_bot_token: str = ""
     telegram_group_chat_id: str = ""
+    digest_recipient_telegram_id: int | None = None
 
     weather_lat: float = 40.0196
     weather_lon: float = -75.3135
