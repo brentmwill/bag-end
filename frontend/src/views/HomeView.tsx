@@ -134,10 +134,10 @@ export default function HomeView({ data, onStartCooking, onRefreshGlance }: Prop
         {home?.tonight_meal ? (
           <div className={styles.mealRow}>
             <div className={styles.mealName}>{home.tonight_meal.name}</div>
-            {onStartCooking && (
+            {onStartCooking && home.tonight_meal.recipe_id && (
               <button
                 className={styles.cookBtn}
-                onClick={() => onStartCooking(home.tonight_meal!.recipe_id)}
+                onClick={() => onStartCooking(home.tonight_meal!.recipe_id!)}
               >
                 ▶ Cook
               </button>

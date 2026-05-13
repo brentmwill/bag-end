@@ -166,6 +166,23 @@ export function useMealPlanner() {
     fetchWeekSlots();
   }, [fetchWeekSlots]);
 
+  const saveDinnerNotes = useCallback(async (date: string, notes: string, existingId?: string) => {
+    if (existingId) {
+      await fetch(`/api/meal-plan/${existingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes }),
+      });
+    } else {
+      await fetch('/api/meal-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, meal_type: 'dinner', notes, source: 'planned' }),
+      });
+    }
+    fetchWeekSlots();
+  }, [fetchWeekSlots]);
+
   const removeBabySlot = useCallback(async (slotId: string) => {
     await fetch(`/api/meal-plan/${slotId}`, { method: 'DELETE' });
     fetchWeekSlots();
@@ -233,6 +250,7 @@ export function useMealPlanner() {
     assignRecipe,
     removeRecipe,
     saveBabySlot,
+    saveDinnerNotes,
     removeBabySlot,
     updateRecipeCategories,
     pushToAnyList,

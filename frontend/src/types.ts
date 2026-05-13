@@ -71,7 +71,7 @@ export interface WordOfDay {
 }
 
 export interface TonightMeal {
-  recipe_id: string;
+  recipe_id: string | null;
   name: string;
 }
 

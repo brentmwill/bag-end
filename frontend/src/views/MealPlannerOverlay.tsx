@@ -100,17 +100,18 @@ function DraggableRecipeCard({
   );
 }
 
-// --- Baby text input with save-on-blur ---
+// --- Slot text input with save-on-blur (used for baby slots + free-text dinners) ---
 
-interface BabyInputProps {
+interface SlotTextInputProps {
   placeholder: string;
   initialValue: string;
   suggestion?: string | null;
   onSave: (value: string) => void;
   onClear?: () => void;
+  inputClassName?: string;
 }
 
-function BabyInput({ placeholder, initialValue, suggestion, onSave, onClear }: BabyInputProps) {
+function SlotTextInput({ placeholder, initialValue, suggestion, onSave, onClear, inputClassName }: SlotTextInputProps) {
   const [value, setValue] = useState(initialValue);
   const isDirty = useRef(false);
 
@@ -137,15 +138,20 @@ function BabyInput({ placeholder, initialValue, suggestion, onSave, onClear }: B
   return (
     <div className={styles.babyInputRow}>
       <input
-        className={styles.babyInput}
+        className={`${styles.babyInput} ${inputClassName ?? ''}`}
         value={value}
         placeholder={suggestion ? `e.g. ${suggestion}` : placeholder}
         onChange={e => { setValue(e.target.value); isDirty.current = true; }}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
+        onPointerDown={e => e.stopPropagation()}
       />
       {value && onClear && (
-        <button className={styles.babyInputClear} onClick={() => { setValue(''); if (onClear) onClear(); }}>✕</button>
+        <button
+          className={styles.babyInputClear}
+          onPointerDown={e => e.stopPropagation()}
+          onClick={() => { setValue(''); if (onClear) onClear(); }}
+        >✕</button>
       )}
     </div>
   );
@@ -156,14 +162,17 @@ function BabyInput({ placeholder, initialValue, suggestion, onSave, onClear }: B
 interface DaySlotProps {
   day: WeekDay;
   onRemove: (slotId: string) => void;
+  onSaveDinner: (date: string, notes: string, existingId?: string) => void;
   onSaveBaby: (date: string, type: 'baby_lunch' | 'baby_snack', notes: string, existingId?: string) => void;
   onRemoveBaby: (slotId: string) => void;
 }
 
-function DaySlot({ day, onRemove, onSaveBaby, onRemoveBaby }: DaySlotProps) {
+function DaySlot({ day, onRemove, onSaveDinner, onSaveBaby, onRemoveBaby }: DaySlotProps) {
   const { setNodeRef, isOver } = useDroppable({ id: day.date });
   const snack1 = day.babySnackSlots[0] ?? null;
   const snack2 = day.babySnackSlots[1] ?? null;
+  const dinnerHasRecipe = !!day.slot?.recipe_name;
+  const dinnerNotesId = !dinnerHasRecipe ? day.slot?.id : undefined;
 
   return (
     <div className={styles.daySlotWrapper}>
@@ -173,9 +182,9 @@ function DaySlot({ day, onRemove, onSaveBaby, onRemoveBaby }: DaySlotProps) {
         className={`${styles.daySlot} ${isOver ? styles.daySlotOver : ''}`}
       >
         <div className={styles.dayLabel}>{day.label}</div>
-        {day.slot?.recipe_name ? (
+        {dinnerHasRecipe ? (
           <div className={styles.slotFilled}>
-            <span className={styles.slotRecipeName}>{day.slot.recipe_name}</span>
+            <span className={styles.slotRecipeName}>{day.slot!.recipe_name}</span>
             <button
               className={styles.removeBtn}
               onClick={() => day.slot && onRemove(day.slot.id)}
@@ -184,7 +193,13 @@ function DaySlot({ day, onRemove, onSaveBaby, onRemoveBaby }: DaySlotProps) {
             </button>
           </div>
         ) : (
-          <div className={styles.slotEmpty}>Drop dinner here</div>
+          <SlotTextInput
+            placeholder="Drop a recipe or type…"
+            initialValue={day.slot?.notes ?? ''}
+            onSave={notes => onSaveDinner(day.date, notes, dinnerNotesId)}
+            onClear={dinnerNotesId ? () => onRemove(dinnerNotesId) : undefined}
+            inputClassName={styles.dinnerInput}
+          />
         )}
       </div>
 
@@ -192,20 +207,20 @@ function DaySlot({ day, onRemove, onSaveBaby, onRemoveBaby }: DaySlotProps) {
       {day.isWeekday && (
         <div className={styles.babySlots}>
           <div className={styles.babySlotsLabel}>Baby</div>
-          <BabyInput
+          <SlotTextInput
             placeholder="Lunch"
             initialValue={day.babyLunchSlot?.notes ?? ''}
             suggestion={day.babyLunchSuggestion}
             onSave={notes => onSaveBaby(day.date, 'baby_lunch', notes, day.babyLunchSlot?.id)}
             onClear={day.babyLunchSlot ? () => onRemoveBaby(day.babyLunchSlot!.id) : undefined}
           />
-          <BabyInput
+          <SlotTextInput
             placeholder="Snack 1"
             initialValue={snack1?.notes ?? ''}
             onSave={notes => onSaveBaby(day.date, 'baby_snack', notes, snack1?.id)}
             onClear={snack1 ? () => onRemoveBaby(snack1.id) : undefined}
           />
-          <BabyInput
+          <SlotTextInput
             placeholder="Snack 2"
             initialValue={snack2?.notes ?? ''}
             onSave={notes => onSaveBaby(day.date, 'baby_snack', notes, snack2?.id)}
@@ -281,6 +296,7 @@ export default function MealPlannerOverlay({ onClose, onStartCooking }: Props) {
     assignRecipe,
     removeRecipe,
     saveBabySlot,
+    saveDinnerNotes,
     removeBabySlot,
     updateRecipeCategories,
     pushToAnyList,
@@ -439,6 +455,7 @@ export default function MealPlannerOverlay({ onClose, onStartCooking }: Props) {
                 key={day.date}
                 day={day}
                 onRemove={removeRecipe}
+                onSaveDinner={saveDinnerNotes}
                 onSaveBaby={saveBabySlot}
                 onRemoveBaby={removeBabySlot}
               />

@@ -421,6 +421,12 @@
   color: var(--red);
 }
 
+.dinnerInput {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  padding: 0.4rem 0.6rem;
+}
+
 /* Category edit modal */
 .categoryModalBackdrop {
   position: fixed;

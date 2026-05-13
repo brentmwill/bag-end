@@ -101,11 +101,12 @@ async def refresh_glance() -> dict:
         for slot in slots:
             d = slot.date.isoformat()
             if slot.meal_type == "dinner":
-                by_date[d]["dinner"] = slot.recipe.name if slot.recipe else None
-                if slot.date == today and slot.recipe:
+                dinner_name = slot.recipe.name if slot.recipe else slot.notes
+                by_date[d]["dinner"] = dinner_name
+                if slot.date == today and dinner_name:
                     tonight_meal = {
-                        "recipe_id": str(slot.recipe.id),
-                        "name": slot.recipe.name,
+                        "recipe_id": str(slot.recipe.id) if slot.recipe else None,
+                        "name": dinner_name,
                     }
             elif slot.meal_type == "baby_lunch":
                 by_date[d]["baby_lunch"] = slot.notes or (slot.recipe.name if slot.recipe else None)
