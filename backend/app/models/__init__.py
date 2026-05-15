@@ -6,6 +6,7 @@ from app.models.users import UserProfile, UserPreferenceEvent
 from app.models.cache import DigestCache, WordOfDayCache
 from app.models.ops import IntegrationSyncLog, BackgroundJobLog
 from app.models.feedback import PendingRating, RecipeFeedback
+from app.models.backlog import BacklogItem, BacklogArchive
 
 __all__ = [
     "Recipe",
@@ -25,4 +26,6 @@ __all__ = [
     "BackgroundJobLog",
     "PendingRating",
     "RecipeFeedback",
+    "BacklogItem",
+    "BacklogArchive",
 ]

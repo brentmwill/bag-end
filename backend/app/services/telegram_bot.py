@@ -461,12 +461,112 @@ async def plan_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text("Meal planning coming soon!")
 
 
+async def backlog_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """`/backlog <freeform>` to capture, `/backlog list` to view open items,
+    `/backlog done <id-prefix>` or `/backlog wontfix <id-prefix>` to archive."""
+    if not update.message:
+        return
+
+    from sqlalchemy import select
+    from app.models.backlog import BacklogItem
+    from app.services.backlog import create_item, resolve_item
+
+    args = context.args or []
+    if not args:
+        await update.message.reply_text(
+            "Usage:\n"
+            "/backlog <freeform note>  — capture friction\n"
+            "/backlog list             — show open items\n"
+            "/backlog done <id-prefix> — archive as resolved\n"
+            "/backlog wontfix <id-prefix>"
+        )
+        return
+
+    sub = args[0].lower()
+
+    if sub == "list":
+        async with _get_bot_session() as session:
+            result = await session.execute(
+                select(BacklogItem).order_by(BacklogItem.created_at.desc()).limit(20)
+            )
+            items = result.scalars().all()
+        if not items:
+            await update.message.reply_text("Backlog is empty.")
+            return
+        lines = [
+            f"`{str(i.id)[:8]}` [{i.severity}/{i.area}] {i.description}"
+            for i in items
+        ]
+        await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+        return
+
+    if sub in ("done", "wontfix"):
+        if len(args) < 2:
+            await update.message.reply_text(f"Usage: /backlog {sub} <id-prefix>")
+            return
+        prefix = args[1]
+        async with _get_bot_session() as session:
+            result = await session.execute(
+                select(BacklogItem).where(
+                    sa_cast_uuid_text(BacklogItem.id).like(f"{prefix}%")
+                )
+            )
+            matches = result.scalars().all()
+            if not matches:
+                await update.message.reply_text(f"No open item matching `{prefix}`.")
+                return
+            if len(matches) > 1:
+                await update.message.reply_text(
+                    f"Prefix `{prefix}` matches {len(matches)} items — be more specific."
+                )
+                return
+            archived = await resolve_item(session, item_id=matches[0].id, resolution=sub)
+            await session.commit()
+        await update.message.reply_text(
+            f"Archived as {sub}: {archived.description}" if archived else "Item gone."
+        )
+        return
+
+    # Anything else: treat the entire message text after "/backlog " as the freeform note.
+    full_text = update.message.text or ""
+    freeform = full_text.partition(" ")[2].strip()
+    if not freeform:
+        await update.message.reply_text("Add a note after /backlog.")
+        return
+
+    try:
+        async with _get_bot_session() as session:
+            item = await create_item(
+                session,
+                freeform_text=freeform,
+                created_by_persona="system",
+            )
+            await session.commit()
+            await session.refresh(item)
+    except Exception:
+        logger.exception("Backlog capture failed")
+        await update.message.reply_text("Couldn't capture that — Haiku normalizer failed.")
+        return
+
+    await update.message.reply_text(
+        f"Logged `{str(item.id)[:8]}` [{item.severity}/{item.area}]: {item.description}",
+        parse_mode="Markdown",
+    )
+
+
+def sa_cast_uuid_text(col):
+    """Postgres-only: cast a UUID column to text for LIKE comparisons."""
+    from sqlalchemy import cast, Text
+    return cast(col, Text)
+
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "Bag End commands:\n"
         "/start — set up your profile\n"
         "/add_baby — add the baby's profile\n"
         "/plan — suggest meals for the week\n"
+        "/backlog — capture or browse friction notes\n"
         "/help — show this message"
     )
 
@@ -521,6 +621,7 @@ async def _run_bot(token: str) -> None:
     app.add_handler(adult_onboarding)
     app.add_handler(baby_onboarding)
     app.add_handler(CommandHandler("plan", plan_command))
+    app.add_handler(CommandHandler("backlog", backlog_command))
     app.add_handler(CommandHandler("help", help_command))
     # Rating state machine — handles DM text for registered users.
     # Unknown users get the registration prompt from inside handle_dm_text.
