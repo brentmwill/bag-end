@@ -53,3 +53,7 @@ uploads/
 
 # APScheduler / job state
 jobstores/
+
+# Persona runtime notes — appended on the server, not version-controlled.
+# Static persona context.md files ARE committed (no negation needed).
+backend/app/personas/*/notes.md
