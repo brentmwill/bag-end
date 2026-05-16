@@ -80,16 +80,14 @@ async def refresh_glance() -> dict:
         # TODO: fetch digest snippet from DigestCache for today
         digest_snippet = None
 
-        # Fetch meal plan for the current week from DB
+        # Fetch meal plan for a rolling 7-day window from today
         today = date.today()
-        # Week starts on Sunday
-        sunday = today - timedelta(days=(today.weekday() + 1) % 7)
-        saturday = sunday + timedelta(days=6)
+        window_end = today + timedelta(days=6)
 
         async with AsyncSessionLocal() as db:
             stmt = (
                 select(MealPlanSlot)
-                .where(MealPlanSlot.date >= sunday, MealPlanSlot.date <= saturday)
+                .where(MealPlanSlot.date >= today, MealPlanSlot.date <= window_end)
                 .options(selectinload(MealPlanSlot.recipe))
                 .order_by(MealPlanSlot.date)
             )
@@ -113,10 +111,10 @@ async def refresh_glance() -> dict:
             elif slot.meal_type == "baby_snack":
                 by_date[d]["baby_snacks"].append(slot.notes or (slot.recipe.name if slot.recipe else None))
 
-        # Build ordered list for Sun–Sat, weekdays only include baby slots
+        # Build ordered list for today + next 6 days, weekdays only include baby slots
         meal_plan_week = []
         for i in range(7):
-            d = sunday + timedelta(days=i)
+            d = today + timedelta(days=i)
             d_str = d.isoformat()
             is_weekday = d.weekday() < 5
             entry = {"date": d_str, "dinner": by_date[d_str]["dinner"]}

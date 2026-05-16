@@ -109,7 +109,7 @@ export default function PlanningView({ data, onStartCooking }: Props) {
 
       {/* Week Meal Plan */}
       <div className={styles.sectionCard}>
-        <div className={styles.sectionLabel}>Meal Plan — This Week</div>
+        <div className={styles.sectionLabel}>Meal Plan — Next 7 Days</div>
         {mealPlan.length > 0 ? (
           <div className={styles.mealPlanList}>
             {mealPlan.map(day => {
@@ -144,13 +144,13 @@ export default function PlanningView({ data, onStartCooking }: Props) {
             })}
           </div>
         ) : (
-          <div className={styles.emptyState}>No meal plan for this week</div>
+          <div className={styles.emptyState}>No meal plan in the next 7 days</div>
         )}
       </div>
 
       {/* Calendar Week */}
       <div className={styles.sectionCard}>
-        <div className={styles.sectionLabel}>Events — This Week</div>
+        <div className={styles.sectionLabel}>Events — Next 7 Days</div>
         {dayGroups.length > 0 ? (
           <div className={styles.calendarWeek}>
             {dayGroups.map(group => (
@@ -174,7 +174,7 @@ export default function PlanningView({ data, onStartCooking }: Props) {
             ))}
           </div>
         ) : (
-          <div className={styles.emptyState}>No events this week</div>
+          <div className={styles.emptyState}>No events in the next 7 days</div>
         )}
       </div>
     </div>
