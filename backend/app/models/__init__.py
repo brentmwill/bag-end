@@ -7,6 +7,7 @@ from app.models.cache import DigestCache, WordOfDayCache
 from app.models.ops import IntegrationSyncLog, BackgroundJobLog
 from app.models.feedback import PendingRating, RecipeFeedback
 from app.models.backlog import BacklogItem, BacklogArchive
+from app.models.logs import ConversationLog, FoodLog
 
 __all__ = [
     "Recipe",
@@ -28,4 +29,6 @@ __all__ = [
     "RecipeFeedback",
     "BacklogItem",
     "BacklogArchive",
+    "ConversationLog",
+    "FoodLog",
 ]
