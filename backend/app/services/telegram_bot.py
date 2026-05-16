@@ -66,6 +66,44 @@ async def _is_known_user(telegram_user_id: int) -> bool:
         return result.scalar_one_or_none() is not None
 
 
+async def _resolve_user_profile_id(telegram_user_id: int):
+    """Look up a registered user's profile id; None if not yet registered."""
+    from app.models.users import UserProfile
+    from sqlalchemy import select
+
+    async with _get_bot_session() as session:
+        result = await session.execute(
+            select(UserProfile.id).where(UserProfile.telegram_user_id == telegram_user_id)
+        )
+        return result.scalar_one_or_none()
+
+
+async def _log_message(
+    *,
+    telegram_user_id: int,
+    user_profile_id,
+    direction: str,
+    persona: str | None,
+    body: str,
+) -> None:
+    """Append one row to conversation_log. Best-effort: swallow errors so a
+    logging failure never breaks the user-facing reply."""
+    from app.models.logs import ConversationLog
+
+    try:
+        async with _get_bot_session() as session:
+            session.add(ConversationLog(
+                telegram_user_id=telegram_user_id,
+                user_profile_id=user_profile_id,
+                direction=direction,
+                persona=persona,
+                body=body,
+            ))
+            await session.commit()
+    except Exception:
+        logger.exception("conversation_log write failed (persona=%s, dir=%s)", persona, direction)
+
+
 # ---------------------------------------------------------------------------
 # Haiku classification helpers
 # ---------------------------------------------------------------------------
@@ -153,6 +191,17 @@ async def handle_dm_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     text = update.message.text.strip()
     now_utc = datetime.now(timezone.utc)
+
+    # Log inbound freeform DM. persona=None — this path is the legacy rating
+    # state machine, not a routed persona. user_profile_id is resolved before
+    # the log call so unknown senders still get captured.
+    await _log_message(
+        telegram_user_id=user.id,
+        user_profile_id=await _resolve_user_profile_id(user.id),
+        direction="in",
+        persona=None,
+        body=text,
+    )
 
     from app.models.feedback import PendingRating, RecipeFeedback
     from app.models.meal_plan import MealPlanSlot
@@ -461,6 +510,60 @@ async def plan_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text("Meal planning coming soon!")
 
 
+# ---------------------------------------------------------------------------
+# Persona slash-command router (Phase 1.5 step 6)
+# ---------------------------------------------------------------------------
+PERSONA_NAMES = ("chef", "inbox", "health", "finance", "chores", "note")
+
+# Stub replies until each persona's handler.py ships. Keep these honest about
+# which phase wires up the real implementation.
+PERSONA_STUB = {
+    "chef": "Chef Sue isn't fully wired up yet — Phase 2.2 retrofits the existing meal/AnyList code into a persona.",
+    "inbox": "Inbox isn't built yet — Phase 2.1, first greenfield persona.",
+    "health": "Health isn't built yet — Phase 2.4 (Brent-only).",
+    "finance": "Finance isn't built yet — Phase 2.5.",
+    "chores": "Chores isn't built yet — Phase 2.6.",
+    "note": "Note capture isn't wired yet.",
+}
+
+
+def _make_persona_handler(persona_name: str):
+    """Return a Telegram command handler bound to one persona name.
+
+    Logs the inbound command + body, dispatches to the registered handler if
+    one exists, otherwise replies with the stub. Outbound reply is also logged.
+    Once a persona ships its real handler, swap PERSONA_STUB[name] for a call
+    into that handler module.
+    """
+    async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message or not update.effective_user:
+            return
+        tg_user_id = update.effective_user.id
+        user_profile_id = await _resolve_user_profile_id(tg_user_id)
+        inbound = update.message.text or ""
+
+        await _log_message(
+            telegram_user_id=tg_user_id,
+            user_profile_id=user_profile_id,
+            direction="in",
+            persona=persona_name,
+            body=inbound,
+        )
+
+        reply = PERSONA_STUB[persona_name]
+        await update.message.reply_text(reply)
+
+        await _log_message(
+            telegram_user_id=tg_user_id,
+            user_profile_id=user_profile_id,
+            direction="out",
+            persona=persona_name,
+            body=reply,
+        )
+
+    return handler
+
+
 async def backlog_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """`/backlog <freeform>` to capture, `/backlog list` to view open items,
     `/backlog done <id-prefix>` or `/backlog wontfix <id-prefix>` to archive."""
@@ -567,6 +670,15 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/add_baby — add the baby's profile\n"
         "/plan — suggest meals for the week\n"
         "/backlog — capture or browse friction notes\n"
+        "\n"
+        "Personas (stubs for now, real handlers landing in Phase 2):\n"
+        "/chef — Chef Sue (recipes, meal plan, AnyList, food log)\n"
+        "/inbox — Inbox (Gmail triage)\n"
+        "/health — Health (Brent-only)\n"
+        "/finance — Finance (Monarch)\n"
+        "/chores — Chores (recurring tasks)\n"
+        "/note — quick capture\n"
+        "\n"
         "/help — show this message"
     )
 
@@ -622,6 +734,8 @@ async def _run_bot(token: str) -> None:
     app.add_handler(baby_onboarding)
     app.add_handler(CommandHandler("plan", plan_command))
     app.add_handler(CommandHandler("backlog", backlog_command))
+    for _persona in PERSONA_NAMES:
+        app.add_handler(CommandHandler(_persona, _make_persona_handler(_persona)))
     app.add_handler(CommandHandler("help", help_command))
     # Rating state machine — handles DM text for registered users.
     # Unknown users get the registration prompt from inside handle_dm_text.
