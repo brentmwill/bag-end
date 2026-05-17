@@ -5,7 +5,6 @@ import styles from './CalendarView.module.css';
 
 type CalView = 'daily' | 'weekly' | 'monthly';
 
-const DAY_NAMES_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DAY_NAMES_HEADER = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -23,11 +22,9 @@ function isToday(d: Date): boolean {
 
 function getWeekDates(): Date[] {
   const today = new Date();
-  const sunday = new Date(today);
-  sunday.setDate(today.getDate() - today.getDay());
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(sunday);
-    d.setDate(sunday.getDate() + i);
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
     return d;
   });
 }
@@ -113,17 +110,18 @@ function WeeklyView({ events }: { events: CalendarEvent[] }) {
 
   return (
     <div className={styles.weekGrid}>
-      {weekDates.map((date, i) => {
+      {weekDates.map((date) => {
         const key = toDateKey(date);
         const dayEvents = (byDate.get(key) ?? []).sort((a, b) => a.start.localeCompare(b.start));
         const today = isToday(date);
         const shown = dayEvents.slice(0, MAX_SHOWN);
         const overflow = dayEvents.length - MAX_SHOWN;
+        const dayName = date.toLocaleDateString([], { weekday: 'short' });
 
         return (
           <div key={key} className={`${styles.weekDay} ${today ? styles.weekDayToday : ''}`}>
             <div className={styles.weekDayHeader}>
-              <span className={styles.weekDayName}>{DAY_NAMES_SHORT[i]}</span>
+              <span className={styles.weekDayName}>{dayName}</span>
               <span className={`${styles.weekDayNum} ${today ? styles.weekDayNumToday : ''}`}>
                 {date.getDate()}
               </span>
