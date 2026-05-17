@@ -100,7 +100,7 @@ async def generate_word_of_day(recent_words: list[str]) -> dict[str, Any]:
 
 async def get_today_wotd(db: AsyncSession) -> WordOfDayCache | None:
     """Fetch the active WOTD row for today (most recent if multiple from regen)."""
-    today = date.today()
+    today = datetime.now(settings.local_tz).date()
     stmt = (
         select(WordOfDayCache)
         .where(WordOfDayCache.date == today)
@@ -131,7 +131,7 @@ async def ensure_today_wotd(force_regenerate: bool = False) -> WordOfDayCache:
         data = await generate_word_of_day(exclusions)
 
         row = WordOfDayCache(
-            date=date.today(),
+            date=datetime.now(settings.local_tz).date(),
             word=data["word"],
             pronunciation=data.get("pronunciation"),
             definition=data["definition"],

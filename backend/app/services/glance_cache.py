@@ -80,8 +80,8 @@ async def refresh_glance() -> dict:
         # TODO: fetch digest snippet from DigestCache for today
         digest_snippet = None
 
-        # Fetch meal plan for a rolling 7-day window from today
-        today = date.today()
+        # Fetch meal plan for a rolling 7-day window from today (local TZ)
+        today = datetime.now(settings.local_tz).date()
         window_end = today + timedelta(days=6)
 
         async with AsyncSessionLocal() as db:

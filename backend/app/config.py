@@ -1,4 +1,5 @@
 from datetime import date
+from zoneinfo import ZoneInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from typing import List
@@ -37,6 +38,12 @@ class Settings(BaseSettings):
     weather_lon: float = -75.3135
 
     pregnancy_safe_expiry: date = date(2026, 10, 15)
+
+    local_timezone: str = "America/New_York"
+
+    @property
+    def local_tz(self) -> ZoneInfo:
+        return ZoneInfo(self.local_timezone)
 
     @property
     def pregnancy_safe_active(self) -> bool:
