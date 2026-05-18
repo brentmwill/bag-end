@@ -1,5 +1,5 @@
 """
-Generate / refresh a Google OAuth token for the Bag End dashboard.
+Generate / refresh a Google OAuth token for the Bag End dashboard (Calendar).
 
 Run this on Windows, log in as brentmwill@gmail.com, and it saves token.json
 to the project root. Copy it to the server at

@@ -85,7 +85,7 @@ backend/app/personas/<name>/
 | Google Calendar | read-only | Majordomo | OAuth token helper `fb55512` |
 | Google Maps | read-only | (display) | commute estimates, 4 tiles |
 | Google Photos | read-only | (display) | slideshow (Phase 3) |
-| Gmail | read-only | Inbox | OAuth, scoped per user — **new, Phase 2.1** |
+| Gmail | read-only | Inbox | OAuth, Brent-only — **new, Phase 2.1**. Danielle's inbox deferred indefinitely. |
 | Trello | read + mark complete | Chores (transitional) | filtered to dashboard lists; deprecation arc, see Chores |
 | AnyList | read + write | Chef Sue | via `backend/tools/anylist/push.js`; protobuf patch required |
 | Telegram Bot | read + write | (all personas) | shared bot, multi-voice |
@@ -134,7 +134,7 @@ coordinator (Majordomo) once there are multiple voices to coordinate.
 
 ### 2.1 — Inbox persona (greenfield, first extraction)
 
-- **Scope:** Gmail triage; extract action items from school, doctor, daycare, billing emails
+- **Scope:** Gmail triage; extract action items from school, doctor, daycare, billing emails. **Brent's inbox only** — Danielle's inbox is deferred indefinitely, not on the near-term roadmap.
 - **Voice:** terse, headline-style — "Daycare wants signup by Friday"
 - **First 30-day actions:**
   - `morning_contribution()` — surface up to 2 high-priority items in the morning digest

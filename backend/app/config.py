@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     google_calendar_token_path: str = "token.json"
     google_calendar_ids: str = ""
 
+    # Gmail IMAP (app password, not OAuth — Gmail readonly is a restricted scope
+    # and CASA verification isn't worth it for a one-user personal project).
+    gmail_email: str = ""
+    gmail_app_password: str = ""
+    gmail_imap_host: str = "imap.gmail.com"
+
     google_maps_api_key: str = ""
     home_address: str = ""
     brent_work_address: str = ""
